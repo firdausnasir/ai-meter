@@ -354,7 +354,7 @@ struct GLMTabView: View {
 // MARK: - InlineSettingsView
 
 struct InlineSettingsView: View {
-    @AppStorage("refreshInterval") private var refreshInterval: Double = 60
+    @AppStorage("refreshInterval") private var refreshInterval: Double = 100
     @AppStorage("timezoneOffset") private var timezoneOffset: Int = TimeZone.current.secondsFromGMT() / 3600
     @State private var launchAtLogin = false
     @State private var glmKeyInput: String = ""
@@ -374,9 +374,10 @@ struct InlineSettingsView: View {
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                 Picker("", selection: $refreshInterval) {
-                    Text("30s").tag(30.0)
-                    Text("60s").tag(60.0)
-                    Text("120s").tag(120.0)
+                    Text("100s").tag(100.0)
+                    Text("2m").tag(120.0)
+                    Text("3m").tag(180.0)
+                    Text("5m").tag(300.0)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
@@ -498,6 +499,7 @@ struct InlineSettingsView: View {
         .padding(.vertical, 8)
         .onAppear {
             launchAtLogin = SMAppService.mainApp.status == .enabled
+            if refreshInterval < 100 { refreshInterval = 100 }
         }
     }
 }

@@ -15,7 +15,16 @@ enum APIClient {
         request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
         request.timeoutInterval = 5
 
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        if let http = response as? HTTPURLResponse {
+            if http.statusCode == 429 {
+                let retryAfter = (http.value(forHTTPHeaderField: "retry-after"))
+                    .flatMap { TimeInterval($0) } ?? 60
+                throw UsageService.UsageError.rateLimited(retryAfter: retryAfter)
+            } else if http.statusCode < 200 || http.statusCode >= 300 {
+                throw UsageService.UsageError.fetchFailed
+            }
+        }
         return try parseResponse(data)
     }
 

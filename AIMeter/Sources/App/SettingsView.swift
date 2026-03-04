@@ -2,16 +2,17 @@ import SwiftUI
 import ServiceManagement
 
 struct SettingsView: View {
-    @AppStorage("refreshInterval") private var refreshInterval: Double = 60
+    @AppStorage("refreshInterval") private var refreshInterval: Double = 100
     @AppStorage("timezoneOffset") private var timezoneOffset: Int = 8 // UTC+8 Malaysia
     @State private var launchAtLogin = false
 
     var body: some View {
         Form {
             Picker("Refresh interval", selection: $refreshInterval) {
-                Text("30 seconds").tag(30.0)
-                Text("60 seconds").tag(60.0)
-                Text("120 seconds").tag(120.0)
+                Text("2 minutes").tag(120.0)
+                Text("100 seconds").tag(100.0)
+                Text("3 minutes").tag(180.0)
+                Text("5 minutes").tag(300.0)
             }
 
             Picker("Timezone", selection: $timezoneOffset) {
@@ -44,6 +45,7 @@ struct SettingsView: View {
         .frame(width: 300, height: 200)
         .onAppear {
             launchAtLogin = SMAppService.mainApp.status == .enabled
+            if refreshInterval < 100 { refreshInterval = 100 }
         }
     }
 }
