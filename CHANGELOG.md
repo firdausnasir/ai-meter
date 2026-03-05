@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-03-05
+
+### Added
+
+- Own OAuth PKCE authentication flow (separate rate limit bucket from Claude Code)
+- Sign in/out UI in Settings tab and directly on Claude tab
+- File-based token storage at `~/.config/aimeter/token` (no Keychain dependency)
+
+### Changed
+
+- Default polling interval restored to 60s (1m/2m/3m/5m picker)
+- No longer requires Claude Code to be installed
+
+### Removed
+
+- `KeychainHelper.swift` — no longer reads Claude Code's Keychain token
+- `SettingsView.swift` — unused standalone settings window
+
 ## [1.8.0] - 2026-03-05
 
 ### Added
