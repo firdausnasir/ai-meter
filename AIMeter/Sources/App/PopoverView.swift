@@ -14,7 +14,8 @@ struct PopoverView: View {
     @ObservedObject var copilotService: CopilotService
     @ObservedObject var glmService: GLMService
     @ObservedObject var updaterManager: UpdaterManager
-    @ObservedObject var oauthManager: OAuthManager
+    @ObservedObject var authManager: SessionAuthManager
+    @ObservedObject var historyService: QuotaHistoryService
     @AppStorage("timezoneOffset") private var timezoneOffset: Int = TimeZone.current.secondsFromGMT() / 3600
     @State private var selectedTab: Tab = .claude
 
@@ -22,22 +23,22 @@ struct PopoverView: View {
         TimeZone(secondsFromGMT: timezoneOffset * 3600) ?? .current
     }
 
-    private var overallHighestUtilization: Int {
-        max(service.usageData.highestUtilization,
-            copilotService.copilotData.highestUtilization,
-            glmService.glmData.tokensPercent)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             // Header
             HStack {
-                Image(systemName: "circle.fill")
-                    .foregroundColor(UsageColor.forUtilization(overallHighestUtilization))
-                    .font(.system(size: 10))
                 Text("AI Meter")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.white)
+                if let plan = resolvedPlanName {
+                    Text(plan)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.orange)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.orange.opacity(0.15))
+                        .cornerRadius(4)
+                }
                 Spacer()
             }
             .padding(.bottom, 4)
@@ -49,17 +50,17 @@ struct PopoverView: View {
             // Content
             switch selectedTab {
             case .claude:
-                if !oauthManager.isAuthenticated {
+                if !authManager.isAuthenticated {
                     signInPromptView
                 } else {
-                    ClaudeTabView(service: service, timeZone: configuredTimeZone)
+                    ClaudeTabView(service: service, historyService: historyService, timeZone: configuredTimeZone)
                 }
             case .copilot:
                 CopilotTabView(copilotService: copilotService, timeZone: configuredTimeZone)
             case .glm:
                 GLMTabView(glmService: glmService)
             case .settings:
-                InlineSettingsView(updaterManager: updaterManager, oauthManager: oauthManager)
+                InlineSettingsView(updaterManager: updaterManager, authManager: authManager)
             }
 
             Spacer(minLength: 0)
@@ -84,6 +85,15 @@ struct PopoverView: View {
         .frame(width: 320)
     }
 
+    /// Plan name from login (rate_limit_tier) or API (seat_tier)
+    private var resolvedPlanName: String? {
+        // First: from organizations endpoint (rate_limit_tier, parsed at login)
+        if let plan = authManager.planName { return plan }
+        // Fallback: from overage_spend_limit API (seat_tier)
+        if let plan = service.usageData.planName { return plan }
+        return nil
+    }
+
     private var isStale: Bool {
         switch selectedTab {
         case .claude: return service.isStale
@@ -106,8 +116,6 @@ struct PopoverView: View {
         return "Updated \(seconds / 60)m ago"
     }
 
-    @State private var inlineOAuthCode: String = ""
-
     private var signInPromptView: some View {
         VStack(spacing: 12) {
             Image(systemName: "person.crop.circle.badge.questionmark")
@@ -116,36 +124,28 @@ struct PopoverView: View {
             Text("Not signed in")
                 .font(.headline)
                 .foregroundColor(.white)
+            Text("Sign in to view your Claude usage")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
 
-            if oauthManager.isAwaitingCode {
-                Text("Paste the code from your browser:")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                HStack {
-                    TextField("code#state", text: $inlineOAuthCode)
-                        .font(.system(size: 12))
-                        .textFieldStyle(.plain)
-                    Button("Submit") {
-                        let code = inlineOAuthCode
-                        inlineOAuthCode = ""
-                        Task { await oauthManager.submitOAuthCode(code) }
-                    }
-                    .font(.system(size: 11))
-                    .buttonStyle(.plain)
-                    .foregroundColor(.accentColor)
-                    .disabled(inlineOAuthCode.isEmpty)
+            Button("Sign in with Claude") {
+                authManager.openLoginWindow()
+            }
+            .font(.system(size: 12))
+            .buttonStyle(.plain)
+            .foregroundColor(.accentColor)
+            .disabled(authManager.isLoggingIn)
+
+            if authManager.isLoggingIn {
+                HStack(spacing: 4) {
+                    ProgressView().scaleEffect(0.6).frame(width: 12, height: 12)
+                    Text("Waiting for login...")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
                 }
-                .padding(.horizontal, 24)
-            } else {
-                Button("Sign in with Claude") {
-                    oauthManager.startOAuthFlow()
-                }
-                .font(.system(size: 12))
-                .buttonStyle(.plain)
-                .foregroundColor(.accentColor)
             }
 
-            if let error = oauthManager.lastError {
+            if let error = authManager.lastError {
                 Text(error)
                     .font(.system(size: 10))
                     .foregroundColor(.red)
@@ -213,11 +213,22 @@ struct TabBarView: View {
 
 struct ClaudeTabView: View {
     @ObservedObject var service: UsageService
+    @ObservedObject var historyService: QuotaHistoryService
     let timeZone: TimeZone
 
     var body: some View {
         let data = service.usageData
-        VStack(spacing: 0) {
+        VStack(spacing: 6) {
+            // Breakdown bar: Session / Weekly / Sonnet proportions
+            BreakdownBarView(
+                segments: breakdownSegments(from: data),
+                height: 8
+            )
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.05))
+            .cornerRadius(10)
+
             // Session card: live countdown ticking every second
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 UsageCardView(
@@ -258,7 +269,21 @@ struct ClaudeTabView: View {
                     resetText: nil
                 )
             }
+
+            // Historical trend chart
+            QuotaChartView(historyService: historyService)
         }
+    }
+
+    private func breakdownSegments(from data: UsageData) -> [(label: String, value: Int, color: Color)] {
+        var segments: [(label: String, value: Int, color: Color)] = [
+            ("Session", data.fiveHour.utilization, .blue),
+            ("Weekly", data.sevenDay.utilization, .orange),
+        ]
+        if let sonnet = data.sevenDaySonnet {
+            segments.append(("Sonnet", sonnet.utilization, .purple))
+        }
+        return segments
     }
 }
 
@@ -273,12 +298,12 @@ struct CopilotTabView: View {
             connectGitHubView
         } else {
             let copilot = copilotService.copilotData
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 6) {
                 if let resetText = ResetTimeFormatter.format(copilot.resetDate, style: .dayTime, timeZone: timeZone) {
                     Text("Reset \(resetText)")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
-                        .padding(.bottom, 8)
+                        .padding(.bottom, 2)
                 }
                 copilotQuotaRow(title: "Chat", quota: copilot.chat)
                 copilotQuotaRow(title: "Completions", quota: copilot.completions)
@@ -325,7 +350,10 @@ struct CopilotTabView: View {
                 }
             }
         }
-        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.05))
+        .cornerRadius(10)
     }
 }
 
@@ -390,13 +418,12 @@ struct GLMTabView: View {
 
 struct InlineSettingsView: View {
     @ObservedObject var updaterManager: UpdaterManager
-    @ObservedObject var oauthManager: OAuthManager
+    @ObservedObject var authManager: SessionAuthManager
     @AppStorage("refreshInterval") private var refreshInterval: Double = 60
     @AppStorage("timezoneOffset") private var timezoneOffset: Int = TimeZone.current.secondsFromGMT() / 3600
     @State private var launchAtLogin = false
     @State private var glmKeyInput: String = ""
     @State private var glmKeySaved: Bool = false
-    @State private var oauthCode: String = ""
     @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = false
     @AppStorage("notifyWarning") private var notifyWarning: Int = 80
     @AppStorage("notifyCritical") private var notifyCritical: Int = 90
@@ -412,50 +439,40 @@ struct InlineSettingsView: View {
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
 
-                if oauthManager.isAuthenticated {
+                if authManager.isAuthenticated {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
                             .font(.system(size: 12))
-                        Text("Signed in")
-                            .font(.system(size: 12))
-                            .foregroundColor(.white)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Signed in")
+                                .font(.system(size: 12))
+                                .foregroundColor(.white)
+                            if let name = authManager.organizationName {
+                                Text(name)
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                         Spacer()
                         Button("Sign Out") {
-                            oauthManager.signOut()
+                            authManager.signOut()
                         }
                         .font(.system(size: 11))
                         .buttonStyle(.plain)
                         .foregroundColor(.red)
                     }
-                } else if oauthManager.isAwaitingCode {
-                    Text("Paste the code from your browser:")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                    HStack {
-                        TextField("code#state", text: $oauthCode)
-                            .font(.system(size: 12))
-                            .textFieldStyle(.plain)
-                        Button("Submit") {
-                            let code = oauthCode
-                            oauthCode = ""
-                            Task { await oauthManager.submitOAuthCode(code) }
-                        }
-                        .font(.system(size: 11))
-                        .buttonStyle(.plain)
-                        .foregroundColor(.accentColor)
-                        .disabled(oauthCode.isEmpty)
-                    }
                 } else {
                     Button("Sign in with Claude") {
-                        oauthManager.startOAuthFlow()
+                        authManager.openLoginWindow()
                     }
                     .font(.system(size: 12))
                     .buttonStyle(.plain)
                     .foregroundColor(.accentColor)
+                    .disabled(authManager.isLoggingIn)
                 }
 
-                if let error = oauthManager.lastError {
+                if let error = authManager.lastError {
                     Text(error)
                         .font(.system(size: 10))
                         .foregroundColor(.red)

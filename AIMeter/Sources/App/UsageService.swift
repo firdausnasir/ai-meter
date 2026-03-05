@@ -6,21 +6,17 @@ import WidgetKit
 final class UsageService: ObservableObject {
     @Published var usageData: UsageData = SharedDefaults.load() ?? .empty
     @Published var isStale: Bool = false
-    @Published var error: UsageError? = nil
+    @Published var error: APIError? = nil
 
     private var timer: Timer?
     private var refreshInterval: TimeInterval = 60
-    private weak var oauthManager: OAuthManager?
+    private weak var authManager: SessionAuthManager?
+    private weak var historyService: QuotaHistoryService?
 
-    enum UsageError: Error, Equatable {
-        case noToken
-        case fetchFailed
-        case rateLimited(retryAfter: TimeInterval)
-    }
-
-    func start(interval: TimeInterval = 60, oauthManager: OAuthManager) {
+    func start(interval: TimeInterval = 60, authManager: SessionAuthManager, historyService: QuotaHistoryService? = nil) {
         self.refreshInterval = interval
-        self.oauthManager = oauthManager
+        self.authManager = authManager
+        self.historyService = historyService
         if let cached = SharedDefaults.load() {
             self.usageData = cached
             self.isStale = Date().timeIntervalSince(cached.fetchedAt) > refreshInterval * 2
@@ -44,13 +40,33 @@ final class UsageService: ObservableObject {
     }
 
     func fetch() async {
-        guard let token = oauthManager?.loadToken() else {
-            self.error = .noToken
+        guard let auth = authManager,
+              let sessionKey = auth.sessionKey,
+              let orgId = auth.organizationId else {
+            self.error = .noCredentials
             return
         }
 
         do {
-            let data = try await APIClient.fetchUsage(token: token)
+            // Fetch main usage + extra usage in parallel
+            async let mainUsage = APIClient.fetchUsage(sessionKey: sessionKey, orgId: orgId)
+            async let extraUsage = APIClient.fetchExtraUsage(sessionKey: sessionKey, orgId: orgId)
+
+            var data = try await mainUsage
+            let extra = await extraUsage
+
+            // Merge extra usage and plan name
+            if extra.credits != nil || extra.planName != nil {
+                data = UsageData(
+                    fiveHour: data.fiveHour,
+                    sevenDay: data.sevenDay,
+                    sevenDaySonnet: data.sevenDaySonnet,
+                    extraCredits: extra.credits,
+                    planName: extra.planName,
+                    fetchedAt: data.fetchedAt
+                )
+            }
+
             self.usageData = data
             self.isStale = false
             if case .rateLimited = self.error { rescheduleTimer(interval: refreshInterval) }
@@ -58,10 +74,14 @@ final class UsageService: ObservableObject {
             SharedDefaults.save(data)
             WidgetCenter.shared.reloadAllTimelines()
             NotificationManager.shared.check(metrics: NotificationManager.metrics(from: data))
-        } catch let usageError as UsageError {
+            historyService?.recordDataPoint(
+                session: Double(data.fiveHour.utilization) / 100.0,
+                weekly: Double(data.sevenDay.utilization) / 100.0
+            )
+        } catch let apiError as APIError {
             self.isStale = true
-            self.error = usageError
-            if case .rateLimited(let retryAfter) = usageError {
+            self.error = apiError
+            if case .rateLimited(let retryAfter) = apiError {
                 rescheduleTimer(interval: retryAfter + 5)
             }
         } catch {

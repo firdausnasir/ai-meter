@@ -49,6 +49,7 @@ final class UsageDataTests: XCTestCase {
             sevenDay: RateLimit(utilization: 54, resetsAt: nil),
             sevenDaySonnet: RateLimit(utilization: 80, resetsAt: nil),
             extraCredits: nil,
+            planName: nil,
             fetchedAt: Date()
         )
         XCTAssertEqual(data.highestUtilization, 80)

@@ -34,6 +34,9 @@ struct UsageCardView: View {
             }
             ProgressBarView(percentage: percentage, height: 6)
         }
-        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.05))
+        .cornerRadius(10)
     }
 }

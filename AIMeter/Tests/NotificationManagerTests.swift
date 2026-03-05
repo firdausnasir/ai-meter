@@ -80,6 +80,7 @@ final class NotificationManagerTests: XCTestCase {
             sevenDay: RateLimit(utilization: 54, resetsAt: nil),
             sevenDaySonnet: nil,
             extraCredits: nil,
+            planName: nil,
             fetchedAt: Date()
         )
         let metrics = NotificationManager.metrics(from: data)
@@ -96,6 +97,7 @@ final class NotificationManagerTests: XCTestCase {
             sevenDay: RateLimit(utilization: 20, resetsAt: nil),
             sevenDaySonnet: RateLimit(utilization: 80, resetsAt: nil),
             extraCredits: ExtraCredits(utilization: 50, used: 2500, limit: 5000),
+            planName: nil,
             fetchedAt: Date()
         )
         let metrics = NotificationManager.metrics(from: data)
@@ -110,6 +112,7 @@ final class NotificationManagerTests: XCTestCase {
             sevenDay: RateLimit(utilization: 0, resetsAt: nil),
             sevenDaySonnet: nil,
             extraCredits: ExtraCredits(utilization: 50, used: 1000, limit: 5000),
+            planName: nil,
             fetchedAt: Date()
         )
         let metrics = NotificationManager.metrics(from: data)

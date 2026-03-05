@@ -13,6 +13,7 @@ struct UsageEntry: TimelineEntry {
             sevenDay: RateLimit(utilization: 54, resetsAt: Date().addingTimeInterval(86400)),
             sevenDaySonnet: RateLimit(utilization: 3, resetsAt: Date().addingTimeInterval(86400)),
             extraCredits: nil,
+            planName: nil,
             fetchedAt: Date()
         ),
         copilotData: CopilotUsageData(

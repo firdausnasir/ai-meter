@@ -5,6 +5,7 @@ struct UsageData: Codable, Equatable {
     let sevenDay: RateLimit
     let sevenDaySonnet: RateLimit?
     let extraCredits: ExtraCredits?
+    let planName: String?
     let fetchedAt: Date
 
     var highestUtilization: Int {
@@ -19,6 +20,7 @@ struct UsageData: Codable, Equatable {
         sevenDay: RateLimit(utilization: 0, resetsAt: nil),
         sevenDaySonnet: nil,
         extraCredits: nil,
+        planName: nil,
         fetchedAt: .distantPast
     )
 }
