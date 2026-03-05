@@ -40,41 +40,22 @@ Coming soon.
 
 ---
 
-## Installation / Getting Started
+## Install (Pre-built)
 
-**1. Clone the repository**
+1. Download the latest `AIMeter-vX.X.X.zip` from [Releases](https://github.com/Khairul989/ai-meter/releases/latest)
+2. Unzip and move `AIMeter.app` to `/Applications`
+3. **First launch only:** right-click the app -> "Open" (bypasses Gatekeeper for unsigned apps)
+4. AIMeter appears in your menu bar
 
-```bash
-git clone https://github.com/Khairul989/ai-meter.git
-cd ai-meter
-```
+Updates are checked automatically on launch. You can also check manually via Settings -> "Check for Updates..."
 
-**2. Install XcodeGen**
+---
 
-```bash
-brew install xcodegen
-```
+## Build from Source
 
-**3. Generate the Xcode project**
-
-```bash
-cd AIMeter
-xcodegen generate
-```
-
-**4. Open in Xcode**
-
-```bash
-open AIMeter.xcodeproj
-```
-
-**5. Set your Development Team**
-
-In Xcode, select the `AIMeter` target, go to **Signing & Capabilities**, and set your Development Team. Repeat for the `AIMeterWidget` target.
-
-**6. Build and run**
-
-Select the **AIMeter** scheme (not AIMeterWidget) and press **Run** (Cmd+R). The app will appear in your menu bar.
+1. Clone the repo
+2. `cd AIMeter && xcodegen generate`
+3. Open `AIMeter.xcodeproj` in Xcode and run
 
 ---
 
