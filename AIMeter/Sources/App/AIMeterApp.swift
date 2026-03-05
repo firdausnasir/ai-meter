@@ -1,5 +1,19 @@
 import SwiftUI
 
+enum MenuBarProvider: String, CaseIterable {
+    case claude = "claude"
+    case copilot = "copilot"
+    case glm = "glm"
+
+    var displayName: String {
+        switch self {
+        case .claude: "Claude"
+        case .copilot: "Copilot"
+        case .glm: "GLM"
+        }
+    }
+}
+
 @main
 struct AIMeterApp: App {
     @StateObject private var service = UsageService()
@@ -9,6 +23,7 @@ struct AIMeterApp: App {
     @StateObject private var authManager = SessionAuthManager()
     @StateObject private var historyService = QuotaHistoryService()
     @AppStorage("refreshInterval") private var refreshInterval: Double = 60
+    @AppStorage("menuBarProvider") private var menuBarProvider: String = MenuBarProvider.claude.rawValue
 
     var body: some Scene {
         MenuBarExtra {
@@ -32,21 +47,51 @@ struct AIMeterApp: App {
                     }
                 }
         } label: {
-            MenuBarLabel(utilization: max(
-                service.usageData.highestUtilization,
-                copilotService.copilotData.highestUtilization,
-                glmService.glmData.tokensPercent
-            ))
+            MenuBarLabel(
+                provider: MenuBarProvider(rawValue: menuBarProvider) ?? .claude,
+                usageData: service.usageData,
+                copilotData: copilotService.copilotData,
+                glmData: glmService.glmData
+            )
         }
         .menuBarExtraStyle(.window)
     }
 }
 
 struct MenuBarLabel: View {
-    let utilization: Int
+    let provider: MenuBarProvider
+    let usageData: UsageData
+    let copilotData: CopilotUsageData
+    let glmData: GLMUsageData
+
+    private var labelText: String {
+        switch provider {
+        case .claude:
+            "5h \(usageData.fiveHour.utilization)% · 7d \(usageData.sevenDay.utilization)%"
+        case .copilot:
+            "Premium \(copilotData.premiumInteractions.utilization)%"
+        case .glm:
+            "GLM \(glmData.tokensPercent)%"
+        }
+    }
+
+    private var highestUtilization: Int {
+        switch provider {
+        case .claude:
+            max(usageData.fiveHour.utilization, usageData.sevenDay.utilization)
+        case .copilot:
+            copilotData.premiumInteractions.utilization
+        case .glm:
+            glmData.tokensPercent
+        }
+    }
 
     var body: some View {
-        Image(systemName: "sparkles")
-            .foregroundStyle(UsageColor.forUtilization(utilization))
+        HStack(spacing: 3) {
+            Image(systemName: "sparkles")
+                .foregroundStyle(UsageColor.forUtilization(highestUtilization))
+            Text(labelText)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+        }
     }
 }

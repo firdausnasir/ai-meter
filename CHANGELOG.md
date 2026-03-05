@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-03-05
+
+### Added
+
+- Menu bar quota display — shows provider-specific usage percentages (e.g. `5h 26% · 7d 60%` for Claude)
+- Menu bar provider picker in Settings — choose which provider's quota to show (Claude / Copilot / GLM)
+- Per-provider menu bar formats: Claude (5h + 7d), Copilot (Premium %), GLM (token %)
+
+### Changed
+
+- Settings page reorganized into grouped sections: Accounts, Display, Notifications, General
+- Each section uses card backgrounds with uppercase headers for visual clarity
+- Icons added to account entries, update button, and quit button
+
 ## [1.10.0] - 2026-03-05
 
 ### Added

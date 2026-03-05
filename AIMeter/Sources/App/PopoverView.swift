@@ -432,198 +432,267 @@ struct InlineSettingsView: View {
     @State private var launchAtLogin = false
     @State private var glmKeyInput: String = ""
     @State private var glmKeySaved: Bool = false
+    @AppStorage("menuBarProvider") private var menuBarProvider: String = MenuBarProvider.claude.rawValue
     @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = false
     @AppStorage("notifyWarning") private var notifyWarning: Int = 80
     @AppStorage("notifyCritical") private var notifyCritical: Int = 90
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Settings")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.white)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Claude Account")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                // MARK: - Accounts
+                settingsSection("Accounts") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "person.crop.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                            Text("Claude")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.secondary)
+                        }
 
-                if authManager.isAuthenticated {
-                    HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                            .font(.system(size: 12))
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("Signed in")
-                                .font(.system(size: 12))
-                                .foregroundColor(.white)
-                            if let name = authManager.organizationName {
-                                Text(name)
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.secondary)
+                        if authManager.isAuthenticated {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                    .font(.system(size: 12))
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text("Signed in")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.white)
+                                    if let name = authManager.organizationName {
+                                        Text(name)
+                                            .font(.system(size: 10))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                Spacer()
+                                Button("Sign Out") {
+                                    authManager.signOut()
+                                }
+                                .font(.system(size: 11))
+                                .buttonStyle(.plain)
+                                .foregroundColor(.red)
                             }
-                        }
-                        Spacer()
-                        Button("Sign Out") {
-                            authManager.signOut()
-                        }
-                        .font(.system(size: 11))
-                        .buttonStyle(.plain)
-                        .foregroundColor(.red)
-                    }
-                } else {
-                    Button("Sign in with Claude") {
-                        authManager.openLoginWindow()
-                    }
-                    .font(.system(size: 12))
-                    .buttonStyle(.plain)
-                    .foregroundColor(.accentColor)
-                    .disabled(authManager.isLoggingIn)
-                }
-
-                if let error = authManager.lastError {
-                    Text(error)
-                        .font(.system(size: 10))
-                        .foregroundColor(.red)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Refresh interval")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                Picker("", selection: $refreshInterval) {
-                    Text("1m").tag(60.0)
-                    Text("2m").tag(120.0)
-                    Text("3m").tag(180.0)
-                    Text("5m").tag(300.0)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Timezone")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                Picker("", selection: $timezoneOffset) {
-                    Text("PST").tag(-8)
-                    Text("EST").tag(-5)
-                    Text("GMT").tag(0)
-                    Text("CET").tag(1)
-                    Text("MYT").tag(8)
-                    Text("JST").tag(9)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Toggle("Enable notifications", isOn: $notificationsEnabled)
-                    .font(.system(size: 12))
-                    .onChange(of: notificationsEnabled) { _, newValue in
-                        if newValue {
-                            NotificationManager.shared.requestPermission()
-                        }
-                    }
-
-                if notificationsEnabled {
-                    Text("Warning threshold")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                    Picker("", selection: $notifyWarning) {
-                        Text("50%").tag(50)
-                        Text("75%").tag(75)
-                        Text("80%").tag(80)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-
-                    Text("Critical threshold")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                    Picker("", selection: $notifyCritical) {
-                        Text("85%").tag(85)
-                        Text("90%").tag(90)
-                        Text("95%").tag(95)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                }
-            }
-
-            Toggle("Launch at login", isOn: $launchAtLogin)
-                .font(.system(size: 12))
-                .onChange(of: launchAtLogin) { _, newValue in
-                    do {
-                        if newValue {
-                            try SMAppService.mainApp.register()
                         } else {
-                            try SMAppService.mainApp.unregister()
-                        }
-                    } catch {
-                        launchAtLogin = !newValue
-                    }
-                }
-
-            Button("Check for Updates...") {
-                updaterManager.checkForUpdates()
-            }
-            .font(.system(size: 12))
-            .buttonStyle(.plain)
-            .foregroundColor(.accentColor)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("GLM API Key")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                if GLMService.keyIsFromEnvironment {
-                    Text("Using GLM_API_KEY from environment")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                        .italic()
-                } else if GLMKeychainHelper.readAPIKey() != nil && glmKeyInput.isEmpty {
-                    HStack {
-                        Text("••••••••")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Button("Clear") {
-                            GLMKeychainHelper.deleteAPIKey()
-                            glmKeySaved = false
-                        }
-                        .font(.system(size: 11))
-                        .buttonStyle(.plain)
-                        .foregroundColor(.red)
-                    }
-                } else {
-                    HStack {
-                        SecureField("Paste API key…", text: $glmKeyInput)
-                            .font(.system(size: 12))
-                            .textFieldStyle(.plain)
-                        if !glmKeyInput.isEmpty {
-                            Button(glmKeySaved ? "Saved ✓" : "Save") {
-                                GLMKeychainHelper.saveAPIKey(glmKeyInput)
-                                glmKeySaved = true
-                                glmKeyInput = ""
+                            Button("Sign in with Claude") {
+                                authManager.openLoginWindow()
                             }
-                            .font(.system(size: 11))
+                            .font(.system(size: 12))
                             .buttonStyle(.plain)
-                            .foregroundColor(glmKeySaved ? .green : .accentColor)
+                            .foregroundColor(.accentColor)
+                            .disabled(authManager.isLoggingIn)
+                        }
+
+                        if let error = authManager.lastError {
+                            Text(error)
+                                .font(.system(size: 10))
+                                .foregroundColor(.red)
+                        }
+
+                        Divider().opacity(0.3)
+
+                        HStack(spacing: 6) {
+                            Image(systemName: "key.fill")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                            Text("GLM API Key")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.secondary)
+                        }
+
+                        if GLMService.keyIsFromEnvironment {
+                            Text("Using GLM_API_KEY from environment")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                                .italic()
+                        } else if GLMKeychainHelper.readAPIKey() != nil && glmKeyInput.isEmpty {
+                            HStack {
+                                Text("••••••••")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Button("Clear") {
+                                    GLMKeychainHelper.deleteAPIKey()
+                                    glmKeySaved = false
+                                }
+                                .font(.system(size: 11))
+                                .buttonStyle(.plain)
+                                .foregroundColor(.red)
+                            }
+                        } else {
+                            HStack {
+                                SecureField("Paste API key…", text: $glmKeyInput)
+                                    .font(.system(size: 12))
+                                    .textFieldStyle(.plain)
+                                if !glmKeyInput.isEmpty {
+                                    Button(glmKeySaved ? "Saved ✓" : "Save") {
+                                        GLMKeychainHelper.saveAPIKey(glmKeyInput)
+                                        glmKeySaved = true
+                                        glmKeyInput = ""
+                                    }
+                                    .font(.system(size: 11))
+                                    .buttonStyle(.plain)
+                                    .foregroundColor(glmKeySaved ? .green : .accentColor)
+                                }
+                            }
                         }
                     }
                 }
-            }
 
-            Button("Quit AIMeter") {
-                NSApp.terminate(nil)
+                // MARK: - Display
+                settingsSection("Display") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        settingsRow("Menu bar") {
+                            Picker("", selection: $menuBarProvider) {
+                                ForEach(MenuBarProvider.allCases, id: \.rawValue) { provider in
+                                    Text(provider.displayName).tag(provider.rawValue)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                        }
+
+                        settingsRow("Timezone") {
+                            Picker("", selection: $timezoneOffset) {
+                                Text("PST").tag(-8)
+                                Text("EST").tag(-5)
+                                Text("GMT").tag(0)
+                                Text("CET").tag(1)
+                                Text("MYT").tag(8)
+                                Text("JST").tag(9)
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                        }
+
+                        settingsRow("Refresh") {
+                            Picker("", selection: $refreshInterval) {
+                                Text("1m").tag(60.0)
+                                Text("2m").tag(120.0)
+                                Text("3m").tag(180.0)
+                                Text("5m").tag(300.0)
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                        }
+                    }
+                }
+
+                // MARK: - Notifications
+                settingsSection("Notifications") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Enable notifications", isOn: $notificationsEnabled)
+                            .font(.system(size: 12))
+                            .onChange(of: notificationsEnabled) { _, newValue in
+                                if newValue {
+                                    NotificationManager.shared.requestPermission()
+                                }
+                            }
+
+                        if notificationsEnabled {
+                            settingsRow("Warning") {
+                                Picker("", selection: $notifyWarning) {
+                                    Text("50%").tag(50)
+                                    Text("75%").tag(75)
+                                    Text("80%").tag(80)
+                                }
+                                .pickerStyle(.segmented)
+                                .labelsHidden()
+                            }
+
+                            settingsRow("Critical") {
+                                Picker("", selection: $notifyCritical) {
+                                    Text("85%").tag(85)
+                                    Text("90%").tag(90)
+                                    Text("95%").tag(95)
+                                }
+                                .pickerStyle(.segmented)
+                                .labelsHidden()
+                            }
+                        }
+                    }
+                }
+
+                // MARK: - General
+                settingsSection("General") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Launch at login", isOn: $launchAtLogin)
+                            .font(.system(size: 12))
+                            .onChange(of: launchAtLogin) { _, newValue in
+                                do {
+                                    if newValue {
+                                        try SMAppService.mainApp.register()
+                                    } else {
+                                        try SMAppService.mainApp.unregister()
+                                    }
+                                } catch {
+                                    launchAtLogin = !newValue
+                                }
+                            }
+
+                        Divider().opacity(0.3)
+
+                        Button {
+                            updaterManager.checkForUpdates()
+                        } label: {
+                            HStack {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .font(.system(size: 11))
+                                Text("Check for Updates...")
+                                    .font(.system(size: 12))
+                            }
+                            .foregroundColor(.accentColor)
+                        }
+                        .buttonStyle(.plain)
+
+                        Divider().opacity(0.3)
+
+                        Button {
+                            NSApp.terminate(nil)
+                        } label: {
+                            HStack {
+                                Image(systemName: "power")
+                                    .font(.system(size: 11))
+                                Text("Quit AIMeter")
+                                    .font(.system(size: 12))
+                            }
+                            .foregroundColor(.red)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
-            .font(.system(size: 12))
-            .foregroundColor(.red)
-            .buttonStyle(.plain)
         }
-        .padding(.vertical, 8)
         .onAppear {
             launchAtLogin = SMAppService.mainApp.status == .enabled
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func settingsSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title.uppercased())
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(.secondary)
+                .tracking(0.5)
+            content()
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white.opacity(0.05))
+                .cornerRadius(8)
+        }
+    }
+
+    private func settingsRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+            content()
         }
     }
 }
