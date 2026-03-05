@@ -9,7 +9,8 @@ final class UsageService: ObservableObject {
     @Published var error: UsageError? = nil
 
     private var timer: Timer?
-    private var refreshInterval: TimeInterval = 100
+    private var refreshInterval: TimeInterval = 60
+    private weak var oauthManager: OAuthManager?
 
     enum UsageError: Error, Equatable {
         case noToken
@@ -17,14 +18,13 @@ final class UsageService: ObservableObject {
         case rateLimited(retryAfter: TimeInterval)
     }
 
-    func start(interval: TimeInterval = 100) {
+    func start(interval: TimeInterval = 60, oauthManager: OAuthManager) {
         self.refreshInterval = interval
-        // Load cached data immediately
+        self.oauthManager = oauthManager
         if let cached = SharedDefaults.load() {
             self.usageData = cached
             self.isStale = Date().timeIntervalSince(cached.fetchedAt) > refreshInterval * 2
         }
-        // Fetch immediately then on timer
         Task { await fetch() }
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             Task { [weak self] in await self?.fetch() }
@@ -44,7 +44,7 @@ final class UsageService: ObservableObject {
     }
 
     func fetch() async {
-        guard let token = KeychainHelper.readAccessToken() else {
+        guard let token = oauthManager?.loadToken() else {
             self.error = .noToken
             return
         }
@@ -53,7 +53,6 @@ final class UsageService: ObservableObject {
             let data = try await APIClient.fetchUsage(token: token)
             self.usageData = data
             self.isStale = false
-            // Resume normal polling if we were previously rate limited
             if case .rateLimited = self.error { rescheduleTimer(interval: refreshInterval) }
             self.error = nil
             SharedDefaults.save(data)
