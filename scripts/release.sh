@@ -43,6 +43,9 @@ xcodebuild archive \
     -configuration Release \
     -archivePath "$ARCHIVE_PATH" \
     ONLY_ACTIVE_ARCH=NO \
+    CODE_SIGN_IDENTITY="-" \
+    CODE_SIGNING_REQUIRED=NO \
+    CODE_SIGNING_ALLOWED=NO \
     | tail -3
 
 echo "==> Exporting .app from archive..."
@@ -57,21 +60,20 @@ mkdir -p "$APPCAST_DIR"
 cp "$ZIP_PATH" "$APPCAST_DIR/"
 "$GENERATE_APPCAST" "$APPCAST_DIR"
 
-echo "==> Creating GitHub Release $VERSION..."
-gh release create "$VERSION" \
-    --repo Khairul989/ai-meter \
-    --title "$TITLE" \
-    --notes "$(cat <<EOF
-## What's New
+NOTES="## What's New
 
 $TITLE
 
 ## Install
 
 Download AIMeter-${VERSION}.zip, unzip, and move AIMeter.app to /Applications.
-First launch: right-click -> Open to bypass Gatekeeper.
-EOF
-)" \
+First launch: right-click -> Open to bypass Gatekeeper."
+
+echo "==> Creating GitHub Release $VERSION..."
+gh release create "$VERSION" \
+    --repo Khairul989/ai-meter \
+    --title "$TITLE" \
+    --notes "$NOTES" \
     "$ZIP_PATH" \
     "$APPCAST_DIR/appcast.xml"
 
