@@ -358,11 +358,12 @@ struct GLMTabView: View {
 struct InlineSettingsView: View {
     @ObservedObject var updaterManager: UpdaterManager
     @ObservedObject var oauthManager: OAuthManager
-    @AppStorage("refreshInterval") private var refreshInterval: Double = 100
+    @AppStorage("refreshInterval") private var refreshInterval: Double = 60
     @AppStorage("timezoneOffset") private var timezoneOffset: Int = TimeZone.current.secondsFromGMT() / 3600
     @State private var launchAtLogin = false
     @State private var glmKeyInput: String = ""
     @State private var glmKeySaved: Bool = false
+    @State private var oauthCode: String = ""
     @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = false
     @AppStorage("notifyWarning") private var notifyWarning: Int = 80
     @AppStorage("notifyCritical") private var notifyCritical: Int = 90
@@ -374,11 +375,65 @@ struct InlineSettingsView: View {
                 .foregroundColor(.white)
 
             VStack(alignment: .leading, spacing: 8) {
+                Text("Claude Account")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+
+                if oauthManager.isAuthenticated {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.system(size: 12))
+                        Text("Signed in")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white)
+                        Spacer()
+                        Button("Sign Out") {
+                            oauthManager.signOut()
+                        }
+                        .font(.system(size: 11))
+                        .buttonStyle(.plain)
+                        .foregroundColor(.red)
+                    }
+                } else if oauthManager.isAwaitingCode {
+                    Text("Paste the code from your browser:")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    HStack {
+                        TextField("code#state", text: $oauthCode)
+                            .font(.system(size: 12))
+                            .textFieldStyle(.plain)
+                        Button("Submit") {
+                            Task { await oauthManager.submitOAuthCode(oauthCode) }
+                            oauthCode = ""
+                        }
+                        .font(.system(size: 11))
+                        .buttonStyle(.plain)
+                        .foregroundColor(.accentColor)
+                        .disabled(oauthCode.isEmpty)
+                    }
+                } else {
+                    Button("Sign in with Claude") {
+                        oauthManager.startOAuthFlow()
+                    }
+                    .font(.system(size: 12))
+                    .buttonStyle(.plain)
+                    .foregroundColor(.accentColor)
+                }
+
+                if let error = oauthManager.lastError {
+                    Text(error)
+                        .font(.system(size: 10))
+                        .foregroundColor(.red)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Refresh interval")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                 Picker("", selection: $refreshInterval) {
-                    Text("100s").tag(100.0)
+                    Text("1m").tag(60.0)
                     Text("2m").tag(120.0)
                     Text("3m").tag(180.0)
                     Text("5m").tag(300.0)
@@ -510,7 +565,6 @@ struct InlineSettingsView: View {
         .padding(.vertical, 8)
         .onAppear {
             launchAtLogin = SMAppService.mainApp.status == .enabled
-            if refreshInterval < 100 { refreshInterval = 100 }
         }
     }
 }
