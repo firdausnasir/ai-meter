@@ -404,8 +404,9 @@ struct InlineSettingsView: View {
                             .font(.system(size: 12))
                             .textFieldStyle(.plain)
                         Button("Submit") {
-                            Task { await oauthManager.submitOAuthCode(oauthCode) }
+                            let code = oauthCode
                             oauthCode = ""
+                            Task { await oauthManager.submitOAuthCode(code) }
                         }
                         .font(.system(size: 11))
                         .buttonStyle(.plain)
