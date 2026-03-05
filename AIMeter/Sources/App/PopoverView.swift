@@ -14,6 +14,7 @@ struct PopoverView: View {
     @ObservedObject var copilotService: CopilotService
     @ObservedObject var glmService: GLMService
     @ObservedObject var updaterManager: UpdaterManager
+    @ObservedObject var oauthManager: OAuthManager
     @AppStorage("timezoneOffset") private var timezoneOffset: Int = TimeZone.current.secondsFromGMT() / 3600
     @State private var selectedTab: Tab = .claude
 
@@ -48,8 +49,8 @@ struct PopoverView: View {
             // Content
             switch selectedTab {
             case .claude:
-                if let error = service.error, error == .noToken {
-                    noTokenView
+                if !oauthManager.isAuthenticated {
+                    signInPromptView
                 } else {
                     ClaudeTabView(service: service, timeZone: configuredTimeZone)
                 }
@@ -58,7 +59,7 @@ struct PopoverView: View {
             case .glm:
                 GLMTabView(glmService: glmService)
             case .settings:
-                InlineSettingsView(updaterManager: updaterManager)
+                InlineSettingsView(updaterManager: updaterManager, oauthManager: oauthManager)
             }
 
             Spacer(minLength: 0)
@@ -105,15 +106,15 @@ struct PopoverView: View {
         return "Updated \(seconds / 60)m ago"
     }
 
-    private var noTokenView: some View {
+    private var signInPromptView: some View {
         VStack(spacing: 8) {
-            Image(systemName: "key.slash")
+            Image(systemName: "person.crop.circle.badge.questionmark")
                 .font(.system(size: 32))
                 .foregroundColor(.secondary)
-            Text("No token found")
+            Text("Not signed in")
                 .font(.headline)
                 .foregroundColor(.white)
-            Text("Sign into Claude Code to get started")
+            Text("Sign in via Settings to see Claude usage")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -356,6 +357,7 @@ struct GLMTabView: View {
 
 struct InlineSettingsView: View {
     @ObservedObject var updaterManager: UpdaterManager
+    @ObservedObject var oauthManager: OAuthManager
     @AppStorage("refreshInterval") private var refreshInterval: Double = 100
     @AppStorage("timezoneOffset") private var timezoneOffset: Int = TimeZone.current.secondsFromGMT() / 3600
     @State private var launchAtLogin = false
