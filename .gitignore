@@ -1,6 +1,7 @@
 # Xcode
 AIMeter/*.xcodeproj
 AIMeter/build/
+build/
 *.xcuserdata
 *.xcworkspace
 DerivedData/
