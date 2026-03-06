@@ -71,18 +71,26 @@ struct MenuBarLabel: View {
     private var labelText: String {
         switch provider {
         case .claude:
-            "5h \(usageData.fiveHour.utilization)% · 7d \(usageData.sevenDay.utilization)%"
+            let pct = "5h \(usageData.fiveHour.utilization)%"
+            if let reset = usageData.fiveHour.resetsAt {
+                let remaining = max(0, Int(reset.timeIntervalSinceNow))
+                let h = remaining / 3600
+                let m = (remaining % 3600) / 60
+                let countdown = h > 0 ? "\(h)h \(m)m" : "\(m)m"
+                return "\(pct) · \(countdown)"
+            }
+            return pct
         case .copilot:
-            "Premium \(copilotData.premiumInteractions.utilization)%"
+            return "Premium \(copilotData.premiumInteractions.utilization)%"
         case .glm:
-            "GLM \(glmData.tokensPercent)%"
+            return "GLM \(glmData.tokensPercent)%"
         }
     }
 
     private var highestUtilization: Int {
         switch provider {
         case .claude:
-            max(usageData.fiveHour.utilization, usageData.sevenDay.utilization)
+            usageData.fiveHour.utilization
         case .copilot:
             copilotData.premiumInteractions.utilization
         case .glm:
@@ -91,11 +99,14 @@ struct MenuBarLabel: View {
     }
 
     var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: "sparkles")
-                .foregroundStyle(UsageColor.forUtilization(highestUtilization))
-            Text(labelText)
-                .font(.system(size: 11, weight: .medium, design: .rounded))
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            let _ = context.date // trigger refresh
+            HStack(spacing: 3) {
+                Image(systemName: "sparkles")
+                    .foregroundStyle(UsageColor.forUtilization(highestUtilization))
+                Text(labelText)
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+            }
         }
     }
 }
