@@ -16,8 +16,10 @@ struct PopoverView: View {
     @ObservedObject var updaterManager: UpdaterManager
     @ObservedObject var authManager: SessionAuthManager
     @ObservedObject var statsService: ClaudeCodeStatsService
+    var onRefresh: () -> Void
     @AppStorage("timezoneOffset") private var timezoneOffset: Int = TimeZone.current.secondsFromGMT() / 3600
     @State private var selectedTab: Tab = .claude
+    @State private var eventMonitor: Any?
 
     private var configuredTimeZone: TimeZone {
         TimeZone(secondsFromGMT: timezoneOffset * 3600) ?? .current
@@ -69,11 +71,33 @@ struct PopoverView: View {
                             .foregroundColor(.orange)
                     }
                     Spacer()
+                    Button(action: onRefresh) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Refresh (⌘R)")
                 }
             }
         }
         .padding(16)
         .frame(width: 320)
+        .onAppear {
+            eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "r" {
+                    onRefresh()
+                    return nil // consume the event
+                }
+                return event
+            }
+        }
+        .onDisappear {
+            if let monitor = eventMonitor {
+                NSEvent.removeMonitor(monitor)
+                eventMonitor = nil
+            }
+        }
     }
 
     /// Plan name from login (rate_limit_tier) or API (seat_tier)

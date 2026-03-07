@@ -25,10 +25,25 @@ struct AIMeterApp: App {
     @StateObject private var statsService = ClaudeCodeStatsService()
     @AppStorage("refreshInterval") private var refreshInterval: Double = 60
     @AppStorage("menuBarProvider") private var menuBarProvider: String = MenuBarProvider.claude.rawValue
+    @State private var isRefreshing = false
 
     var body: some Scene {
+        let refreshAll: () -> Void = {
+            guard !isRefreshing else { return }
+            isRefreshing = true
+            Task { @MainActor in
+                await withTaskGroup(of: Void.self) { group in
+                    group.addTask { await service.fetch() }
+                    group.addTask { await copilotService.fetch() }
+                    group.addTask { await glmService.fetch() }
+                }
+                statsService.load()
+                try? await Task.sleep(for: .milliseconds(600))
+                isRefreshing = false
+            }
+        }
         MenuBarExtra {
-            PopoverView(service: service, copilotService: copilotService, glmService: glmService, updaterManager: updaterManager, authManager: authManager, statsService: statsService)
+            PopoverView(service: service, copilotService: copilotService, glmService: glmService, updaterManager: updaterManager, authManager: authManager, statsService: statsService, onRefresh: refreshAll)
                 .task {
                     service.start(interval: refreshInterval, authManager: authManager, historyService: historyService)
                     copilotService.start(interval: refreshInterval)
@@ -55,7 +70,8 @@ struct AIMeterApp: App {
                 provider: MenuBarProvider(rawValue: menuBarProvider) ?? .claude,
                 usageData: service.usageData,
                 copilotData: copilotService.copilotData,
-                glmData: glmService.glmData
+                glmData: glmService.glmData,
+                isRefreshing: isRefreshing
             )
         }
         .menuBarExtraStyle(.window)
@@ -67,6 +83,7 @@ struct MenuBarLabel: View {
     let usageData: UsageData
     let copilotData: CopilotUsageData
     let glmData: GLMUsageData
+    let isRefreshing: Bool
 
     private var labelText: String {
         switch provider {
@@ -102,6 +119,13 @@ struct MenuBarLabel: View {
         HStack(spacing: 3) {
             Image(systemName: "sparkles")
                 .foregroundStyle(UsageColor.forUtilization(highestUtilization))
+                .opacity(isRefreshing ? 0.3 : 1.0)
+                .animation(
+                    isRefreshing
+                        ? .easeInOut(duration: 0.3).repeatForever(autoreverses: true)
+                        : .linear(duration: 0),
+                    value: isRefreshing
+                )
             Text(labelText)
                 .font(.system(size: 11, weight: .medium, design: .rounded))
         }
