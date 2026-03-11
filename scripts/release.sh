@@ -58,7 +58,9 @@ ditto -c -k --keepParent "AIMeter.app" "$(basename "$ZIP_PATH")"
 echo "==> Generating appcast..."
 mkdir -p "$APPCAST_DIR"
 cp "$ZIP_PATH" "$APPCAST_DIR/"
-"$GENERATE_APPCAST" "$APPCAST_DIR"
+"$GENERATE_APPCAST" \
+    --download-url-prefix "https://github.com/Khairul989/ai-meter/releases/download/${VERSION}/" \
+    "$APPCAST_DIR"
 
 NOTES="## What's New
 
