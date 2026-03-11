@@ -1,5 +1,10 @@
 import Foundation
 
+enum CopilotAPIError: Error {
+    case rateLimited(retryAfter: TimeInterval)
+    case fetchFailed
+}
+
 enum CopilotAPIClient {
     private static let endpoint = URL(string: "https://api.github.com/copilot_internal/user")!
     private static let isoFormatter: ISO8601DateFormatter = {
@@ -16,7 +21,14 @@ enum CopilotAPIClient {
         request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
         request.timeoutInterval = 5
 
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        if let http = response as? HTTPURLResponse, http.statusCode == 429 {
+            let retryAfter = (http.value(forHTTPHeaderField: "retry-after"))
+                .flatMap { TimeInterval($0) } ?? 60
+            throw CopilotAPIError.rateLimited(retryAfter: retryAfter)
+        }
+
         return try parseResponse(data)
     }
 

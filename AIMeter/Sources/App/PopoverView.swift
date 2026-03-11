@@ -12,6 +12,7 @@ enum Tab {
 struct PopoverView: View {
     @ObservedObject var service: UsageService
     @ObservedObject var copilotService: CopilotService
+    @ObservedObject var copilotHistoryService: CopilotHistoryService
     @ObservedObject var glmService: GLMService
     @ObservedObject var updaterManager: UpdaterManager
     @ObservedObject var authManager: SessionAuthManager
@@ -49,7 +50,7 @@ struct PopoverView: View {
                     ClaudeTabView(service: service, statsService: statsService, timeZone: configuredTimeZone, planName: resolvedPlanName)
                 }
             case .copilot:
-                CopilotTabView(copilotService: copilotService, timeZone: configuredTimeZone)
+                CopilotTabView(copilotService: copilotService, historyService: copilotHistoryService, timeZone: configuredTimeZone)
             case .glm:
                 GLMTabView(glmService: glmService)
             case .settings:
@@ -307,6 +308,7 @@ struct ClaudeTabView: View {
 
 struct CopilotTabView: View {
     @ObservedObject var copilotService: CopilotService
+    @ObservedObject var historyService: CopilotHistoryService
     let timeZone: TimeZone
 
     var body: some View {
@@ -321,6 +323,7 @@ struct CopilotTabView: View {
                         .foregroundColor(.secondary)
                         .padding(.bottom, 2)
                 }
+                CopilotChartView(historyService: historyService)
                 copilotQuotaRow(title: "Chat", quota: copilot.chat)
                 copilotQuotaRow(title: "Completions", quota: copilot.completions)
                 copilotQuotaRow(title: "Premium", quota: copilot.premiumInteractions)

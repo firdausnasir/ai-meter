@@ -18,6 +18,7 @@ enum MenuBarProvider: String, CaseIterable {
 struct AIMeterApp: App {
     @StateObject private var service = UsageService()
     @StateObject private var copilotService = CopilotService()
+    @StateObject private var copilotHistoryService = CopilotHistoryService()
     @StateObject private var glmService = GLMService()
     @StateObject private var updaterManager = UpdaterManager()
     @StateObject private var authManager = SessionAuthManager()
@@ -43,10 +44,10 @@ struct AIMeterApp: App {
             }
         }
         MenuBarExtra {
-            PopoverView(service: service, copilotService: copilotService, glmService: glmService, updaterManager: updaterManager, authManager: authManager, statsService: statsService, onRefresh: refreshAll)
+            PopoverView(service: service, copilotService: copilotService, copilotHistoryService: copilotHistoryService, glmService: glmService, updaterManager: updaterManager, authManager: authManager, statsService: statsService, onRefresh: refreshAll)
                 .task {
                     service.start(interval: refreshInterval, authManager: authManager, historyService: historyService)
-                    copilotService.start(interval: refreshInterval)
+                    copilotService.start(interval: refreshInterval, historyService: copilotHistoryService)
                     glmService.start(interval: refreshInterval)
                     statsService.start(interval: refreshInterval)
                 }
@@ -54,7 +55,7 @@ struct AIMeterApp: App {
                     service.stop()
                     service.start(interval: newValue, authManager: authManager, historyService: historyService)
                     copilotService.stop()
-                    copilotService.start(interval: newValue)
+                    copilotService.start(interval: newValue, historyService: copilotHistoryService)
                     glmService.stop()
                     glmService.start(interval: newValue)
                     statsService.stop()
