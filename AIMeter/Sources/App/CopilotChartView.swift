@@ -83,7 +83,11 @@ private struct CopilotInnerChart: View {
                     }
                 }
         } else {
+            let maxRemaining = points.flatMap {
+                [$0.chatRemaining, $0.completionsRemaining, $0.premiumRemaining].compactMap { $0 }
+            }.max() ?? 1
             baseChart(chat: chat, completions: completions, premium: premium)
+                .chartYScale(domain: 0...max(maxRemaining, 1))
                 .chartYAxis {
                     AxisMarks(values: .automatic(desiredCount: 3)) { value in
                         AxisValueLabel {
