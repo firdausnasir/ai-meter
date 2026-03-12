@@ -31,6 +31,7 @@ struct PopoverView: View {
     var onRefresh: () -> Void
     @AppStorage("timezoneOffset") private var timezoneOffset: Int = TimeZone.current.secondsFromGMT() / 3600
     @State private var selectedTab: Tab = .claude
+    @State private var previousTab: Tab = .claude
     @State private var eventMonitor: Any?
 
     private var configuredTimeZone: TimeZone {
@@ -75,7 +76,7 @@ struct PopoverView: View {
                 // Settings icon / Back button
                 if selectedTab == .settings {
                     Button {
-                        selectedTab = .claude
+                        selectedTab = previousTab
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "chevron.left")
@@ -92,6 +93,7 @@ struct PopoverView: View {
                     .buttonStyle(.plain)
                 } else {
                     Button {
+                        previousTab = selectedTab
                         selectedTab = .settings
                     } label: {
                         Image(systemName: "gear")
@@ -614,7 +616,8 @@ struct InlineSettingsView: View {
     @AppStorage("notifyCritical") private var notifyCritical: Int = 90
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        ScrollView {
+          VStack(alignment: .leading, spacing: 10) {
 
                 // MARK: - Accounts
                 settingsSection("Accounts") {
@@ -932,9 +935,10 @@ struct InlineSettingsView: View {
                             }
                             .foregroundColor(.red)
                         }
-                        .buttonStyle(.plain)
+                         .buttonStyle(.plain)
                     }
             }
+          }
         }
         .onAppear {
             launchAtLogin = SMAppService.mainApp.status == .enabled
