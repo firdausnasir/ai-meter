@@ -3,10 +3,8 @@ import Foundation
 @MainActor
 final class CopilotHistoryService: HistoryServiceBase<CopilotHistory, CopilotHistoryDataPoint> {
     private static let fileURL: URL = {
-        let dir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/aimeter", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("copilot-history.json")
+        try? FileManager.default.createDirectory(at: AppConstants.Paths.configDir, withIntermediateDirectories: true)
+        return AppConstants.Paths.copilotHistoryFile
     }()
 
     override var historyFileURL: URL { Self.fileURL }

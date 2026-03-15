@@ -32,9 +32,6 @@ struct ClaudeTabView: View {
                     }
                 }
 
-                ModelUsageView(statsService: statsService)
-                TrendChartView(statsService: statsService)
-
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     UsageCardView(
                         icon: "timer",
@@ -77,6 +74,9 @@ struct ClaudeTabView: View {
                         isCompact: true
                     )
                 }
+
+                ModelUsageView(statsService: statsService)
+                TrendChartView(statsService: statsService)
             }
     }
 }

@@ -6,10 +6,13 @@ final class CopilotService: PollingServiceBase {
     @Published var copilotData: CopilotUsageData = SharedDefaults.loadCopilot() ?? .empty
     @Published var isStale: Bool = false
     @Published var error: CopilotError? = nil
+    @Published var retryDate: Date? = nil
 
     private var refreshInterval: TimeInterval = 60
     // Caller must retain the CopilotHistoryService instance; this service holds only a weak reference
     private weak var copilotHistoryService: CopilotHistoryService?
+    private var isFetching = false
+    private var consecutiveRateLimits = 0
 
     enum CopilotError: Equatable {
         case noToken
@@ -33,6 +36,10 @@ final class CopilotService: PollingServiceBase {
     }
 
     func fetch() async {
+        guard !isFetching else { return }
+        isFetching = true
+        defer { isFetching = false }
+
         guard let token = GitHubKeychainHelper.readAccessToken() else {
             self.error = .noToken
             return
@@ -42,8 +49,10 @@ final class CopilotService: PollingServiceBase {
             let data = try await CopilotAPIClient.fetchUsage(token: token)
             self.copilotData = data
             self.isStale = false
+            consecutiveRateLimits = 0  // Reset on success
             if case .rateLimited = self.error { rescheduleTimer(interval: refreshInterval) }
             self.error = nil
+            self.retryDate = nil
             SharedDefaults.saveCopilot(data)
             copilotHistoryService?.recordSnapshot(data)
             WidgetCenter.shared.reloadAllTimelines()
@@ -51,14 +60,21 @@ final class CopilotService: PollingServiceBase {
         } catch let apiError as CopilotAPIError {
             self.isStale = true
             if case .rateLimited(let retryAfter) = apiError {
-                self.error = .rateLimited(retryAfter: retryAfter)
-                rescheduleTimer(interval: retryAfter + 5)
+                consecutiveRateLimits += 1
+                let backoff = retryAfter * pow(1.5, Double(min(consecutiveRateLimits - 1, 4)))
+                let jitter = Double.random(in: 0...5)
+                let delay = backoff + jitter
+                self.error = .rateLimited(retryAfter: delay)
+                self.retryDate = Date().addingTimeInterval(delay)
+                rescheduleTimer(interval: delay)
             } else {
                 self.error = .fetchFailed
+                self.retryDate = nil
             }
         } catch {
             self.isStale = true
             self.error = .fetchFailed
+            self.retryDate = nil
         }
     }
 }

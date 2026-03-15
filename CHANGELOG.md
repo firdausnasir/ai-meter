@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] - 2026-03-15
+
+### Added
+
+- Onboarding wizard — 3-step welcome flow (Welcome → Providers → Ready) on first launch
+- Skeleton/shimmer loading states — animated placeholders replace plain spinners in ModelUsageView and TrendChartView
+- EmptyStateView component — SF Symbol illustrations with hints, used across all chart empty states
+- Data export — "Export History…" menu in Settings with CSV export for Claude and Copilot quota history
+- Rate limit countdown timer — live "retrying in Xs" countdown on all provider error banners
+- Network connectivity detection — `NWPathMonitor` pauses polling when offline, shows "Offline" banner
+- HTTPPollingService base class — DRY refactor of GLMService and KimiService (~60% code reduction)
+- Customizable usage color thresholds — Normal/Elevated/High breakpoints configurable in Settings > Display
+- Per-provider refresh intervals — optional override per provider (30s/1m/2m/5m) in Settings
+- Keyboard shortcuts section in Settings — documents all available shortcuts (⌘R, ⌘1-5, arrows, Esc)
+- "Open claude.ai" globe button in popover footer
+- Settings reset to defaults button in General section
+- Centralized `AppConstants` — API URLs, file paths, and defaults in one place
+- 48 new tests (49→97 total): UsageColor, NetworkMonitor, HTTPPollingService, GLMService, QuotaHistoryService
+
+### Changed
+
+- TrendChartView renamed to "Daily Usage" with fresh look — Claude accent color bars, 100pt height, constrained X-axis domain
+- Exponential backoff with jitter on rate limits — `retryAfter × 1.5^n + jitter` capped at 4 consecutive hits
+- Request deduplication — `isFetching` guard prevents overlapping fetch() calls in all services
+- JSONL date parsing uses local timezone (fixes timezone mismatch for UTC+ users)
+- TrendChartView empty state now checks both messages AND tokens (was messages-only)
+
+### Fixed
+
+- TrendChartView not loading data on initial launch — `applyTrend()` now called after disk cache load
+- TrendChartView horizontal expansion on hover — added `.chartXScale(domain:)` constraint
+- 14D x-axis label overlap — stride increased from 2 to 3
+
 ## [1.18.0] - 2026-03-14
 
 ### Fixed

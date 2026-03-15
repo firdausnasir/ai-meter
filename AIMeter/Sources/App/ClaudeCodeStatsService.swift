@@ -76,8 +76,7 @@ final class ClaudeCodeStatsService: PollingServiceBase {
     }
 
     private static var dailyCacheFile: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/aimeter/daily-token-cache.json")
+        AppConstants.Paths.tokenCacheFile
     }
 
     private static let dayFormatter: DateFormatter = {
@@ -107,6 +106,7 @@ final class ClaudeCodeStatsService: PollingServiceBase {
         loadAllTime()
         loadDiskCache()
         applyRange()
+        applyTrend()
 
         guard !isParsing else { return }
         isParsing = true
@@ -244,6 +244,13 @@ final class ClaudeCodeStatsService: PollingServiceBase {
 
         let cutoff = since ?? Date().addingTimeInterval(-31 * 86400)
 
+        // Use local timezone formatter so date keys match applyTrend()/applyRange()
+        let localDayFmt = DateFormatter()
+        localDayFmt.dateFormat = "yyyy-MM-dd"
+        localDayFmt.timeZone = .current
+
+        let isoParser = ISO8601DateFormatter()
+
         var daily: [String: [String: (input: Int, output: Int)]] = [:]
         var dailyMessages: [String: Int] = [:]
         let assistantMarker = Data("\"type\":\"assistant\"".utf8)
@@ -285,8 +292,15 @@ final class ClaudeCodeStatsService: PollingServiceBase {
                     guard input + output > 0 else { continue }
 
                     let timestamp = obj["timestamp"] as? String ?? ""
-                    let dateKey = String(timestamp.prefix(10))
-                    guard dateKey.count == 10 else { continue }
+                    // Parse ISO8601 timestamp and format in local timezone to match applyTrend()
+                    let dateKey: String
+                    if let ts = isoParser.date(from: timestamp) {
+                        dateKey = localDayFmt.string(from: ts)
+                    } else {
+                        let fallback = String(timestamp.prefix(10))
+                        guard fallback.count == 10 else { lineStart = i + 1; continue }
+                        dateKey = fallback
+                    }
 
                     var dayEntry = daily[dateKey] ?? [:]
                     let existing = dayEntry[model] ?? (0, 0)

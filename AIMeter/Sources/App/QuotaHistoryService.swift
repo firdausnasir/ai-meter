@@ -3,10 +3,8 @@ import Foundation
 @MainActor
 final class QuotaHistoryService: HistoryServiceBase<QuotaHistory, QuotaDataPoint> {
     private static let fileURL: URL = {
-        let dir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/aimeter", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("history.json")
+        try? FileManager.default.createDirectory(at: AppConstants.Paths.configDir, withIntermediateDirectories: true)
+        return AppConstants.Paths.quotaHistoryFile
     }()
 
     override var historyFileURL: URL { Self.fileURL }

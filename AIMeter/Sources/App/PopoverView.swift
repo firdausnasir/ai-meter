@@ -144,6 +144,8 @@ struct PopoverView: View {
     @EnvironmentObject var updaterManager: UpdaterManager
     @EnvironmentObject var authManager: SessionAuthManager
     @EnvironmentObject var statsService: ClaudeCodeStatsService
+    @EnvironmentObject var historyService: QuotaHistoryService
+    @ObservedObject private var networkMonitor = NetworkMonitor.shared
     var onRefresh: () -> Void
     @AppStorage("timezoneOffset") private var timezoneOffset: Int = TimeZone.current.secondsFromGMT() / 3600
     @AppStorage("navigationStyle") private var navigationStyle: String = "tabbar"
@@ -284,6 +286,22 @@ struct PopoverView: View {
 
             // Footer — hidden on Settings tab, auto-refreshes every 30s
             if selectedTab != .settings {
+                if !networkMonitor.isConnected {
+                    HStack(spacing: 6) {
+                        Image(systemName: "wifi.slash")
+                            .font(.system(size: 11))
+                            .foregroundColor(.orange)
+                        Text("Offline — updates paused")
+                            .font(.system(size: 11))
+                            .foregroundColor(.orange)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(6)
+                    .background(Color.orange.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+                    .padding(.top, 4)
+                }
+
                 TimelineView(.periodic(from: .now, by: 30)) { _ in
                     HStack {
                         if !updatedText.isEmpty {
@@ -297,6 +315,18 @@ struct PopoverView: View {
                             }
                         }
                         Spacer()
+                        Button {
+                            if let url = URL(string: "https://claude.ai") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        } label: {
+                            Image(systemName: "globe")
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Open claude.ai")
+
                         Button(action: onRefresh) {
                             Image(systemName: "arrow.clockwise")
                                 .font(.system(size: 10))

@@ -39,7 +39,23 @@ struct AIMeterApp: App {
     @StateObject private var statsService = ClaudeCodeStatsService()
     @AppStorage("refreshInterval") private var refreshInterval: Double = 60
     @AppStorage("menuBarProvider") private var menuBarProvider: String = MenuBarProvider.claude.rawValue
+    @AppStorage("perProviderRefresh") private var perProviderRefresh: Bool = false
+    @AppStorage("refreshClaude") private var refreshClaude: Double = 60
+    @AppStorage("refreshCopilot") private var refreshCopilot: Double = 60
+    @AppStorage("refreshGLM") private var refreshGLM: Double = 120
+    @AppStorage("refreshKimi") private var refreshKimi: Double = 300
     @State private var isRefreshing = false
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+
+    private func interval(for provider: MenuBarProvider) -> Double {
+        guard perProviderRefresh else { return refreshInterval }
+        switch provider {
+        case .claude: return refreshClaude
+        case .copilot: return refreshCopilot
+        case .glm: return refreshGLM
+        case .kimi: return refreshKimi
+        }
+    }
 
     var body: some Scene {
         let refreshAll: () -> Void = {
@@ -57,41 +73,52 @@ struct AIMeterApp: App {
                 isRefreshing = false
             }
         }
+        let restartAll: () -> Void = {
+            service.stop()
+            service.start(interval: interval(for: .claude), authManager: authManager, historyService: historyService)
+            copilotService.stop()
+            copilotService.start(interval: interval(for: .copilot), historyService: copilotHistoryService)
+            glmService.stop()
+            glmService.start(interval: interval(for: .glm))
+            kimiService.stop()
+            kimiService.start(interval: interval(for: .kimi))
+            statsService.stop()
+            statsService.start(interval: interval(for: .claude))
+        }
         MenuBarExtra {
-            PopoverView(onRefresh: refreshAll)
-                .environmentObject(service)
-                .environmentObject(copilotService)
-                .environmentObject(copilotHistoryService)
-                .environmentObject(glmService)
-                .environmentObject(kimiService)
-                .environmentObject(updaterManager)
-                .environmentObject(authManager)
-                .environmentObject(statsService)
-                .task {
-                    UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
-                    service.start(interval: refreshInterval, authManager: authManager, historyService: historyService)
-                    copilotService.start(interval: refreshInterval, historyService: copilotHistoryService)
-                    glmService.start(interval: refreshInterval)
-                    kimiService.start(interval: refreshInterval)
-                    statsService.start(interval: refreshInterval)
-                }
-                .onChange(of: refreshInterval) { _, newValue in
-                    service.stop()
-                    service.start(interval: newValue, authManager: authManager, historyService: historyService)
-                    copilotService.stop()
-                    copilotService.start(interval: newValue, historyService: copilotHistoryService)
-                    glmService.stop()
-                    glmService.start(interval: newValue)
-                    kimiService.stop()
-                    kimiService.start(interval: newValue)
-                    statsService.stop()
-                    statsService.start(interval: newValue)
-                }
-                .onChange(of: authManager.isAuthenticated) { _, isAuth in
-                    if isAuth {
-                        Task { await service.fetch() }
+            if !hasCompletedOnboarding {
+                OnboardingView(hasCompletedOnboarding: $hasCompletedOnboarding)
+            } else {
+                PopoverView(onRefresh: refreshAll)
+                    .environmentObject(service)
+                    .environmentObject(copilotService)
+                    .environmentObject(copilotHistoryService)
+                    .environmentObject(glmService)
+                    .environmentObject(kimiService)
+                    .environmentObject(updaterManager)
+                    .environmentObject(authManager)
+                    .environmentObject(statsService)
+                    .environmentObject(historyService)
+                    .task {
+                        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+                        service.start(interval: interval(for: .claude), authManager: authManager, historyService: historyService)
+                        copilotService.start(interval: interval(for: .copilot), historyService: copilotHistoryService)
+                        glmService.start(interval: interval(for: .glm))
+                        kimiService.start(interval: interval(for: .kimi))
+                        statsService.start(interval: interval(for: .claude))
                     }
-                }
+                    .onChange(of: refreshInterval) { _, _ in restartAll() }
+                    .onChange(of: perProviderRefresh) { _, _ in restartAll() }
+                    .onChange(of: refreshClaude) { _, _ in restartAll() }
+                    .onChange(of: refreshCopilot) { _, _ in restartAll() }
+                    .onChange(of: refreshGLM) { _, _ in restartAll() }
+                    .onChange(of: refreshKimi) { _, _ in restartAll() }
+                    .onChange(of: authManager.isAuthenticated) { _, isAuth in
+                        if isAuth {
+                            Task { await service.fetch() }
+                        }
+                    }
+            }
         } label: {
             MenuBarLabel(
                 provider: MenuBarProvider(rawValue: menuBarProvider) ?? .claude,

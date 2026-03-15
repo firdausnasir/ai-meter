@@ -46,7 +46,7 @@ struct KimiTabView: View {
                         }
                     }
                     if case .rateLimited = kimiService.error {
-                        ErrorBannerView(message: "Rate limited — backing off")
+                        ErrorBannerView(message: "Rate limited — retrying", retryDate: kimiService.retryDate)
                     }
                 }
         }

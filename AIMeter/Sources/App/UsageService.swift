@@ -6,10 +6,13 @@ final class UsageService: PollingServiceBase {
     @Published var usageData: UsageData = SharedDefaults.load() ?? .empty
     @Published var isStale: Bool = false
     @Published var error: APIError? = nil
+    @Published var retryDate: Date? = nil
 
     private var refreshInterval: TimeInterval = 60
     private weak var authManager: SessionAuthManager?
     private weak var historyService: QuotaHistoryService?
+    private var isFetching = false
+    private var consecutiveRateLimits = 0
 
     func start(interval: TimeInterval = 60, authManager: SessionAuthManager, historyService: QuotaHistoryService? = nil) {
         self.refreshInterval = interval
@@ -27,6 +30,10 @@ final class UsageService: PollingServiceBase {
     }
 
     func fetch() async {
+        guard !isFetching else { return }
+        isFetching = true
+        defer { isFetching = false }
+
         guard let auth = authManager,
               let sessionKey = auth.sessionKey,
               let orgId = auth.organizationId else {
@@ -56,8 +63,10 @@ final class UsageService: PollingServiceBase {
 
             self.usageData = data
             self.isStale = false
+            consecutiveRateLimits = 0  // Reset on success
             if case .rateLimited = self.error { rescheduleTimer(interval: refreshInterval) }
             self.error = nil
+            self.retryDate = nil
             SharedDefaults.save(data)
             WidgetCenter.shared.reloadAllTimelines()
             NotificationManager.shared.check(metrics: NotificationManager.metrics(from: data))
@@ -69,11 +78,19 @@ final class UsageService: PollingServiceBase {
             self.isStale = true
             self.error = apiError
             if case .rateLimited(let retryAfter) = apiError {
-                rescheduleTimer(interval: retryAfter + 5)
+                consecutiveRateLimits += 1
+                let backoff = retryAfter * pow(1.5, Double(min(consecutiveRateLimits - 1, 4)))
+                let jitter = Double.random(in: 0...5)
+                let delay = backoff + jitter
+                self.retryDate = Date().addingTimeInterval(delay)
+                rescheduleTimer(interval: delay)
+            } else {
+                self.retryDate = nil
             }
         } catch {
             self.isStale = true
             self.error = .fetchFailed
+            self.retryDate = nil
         }
     }
 }

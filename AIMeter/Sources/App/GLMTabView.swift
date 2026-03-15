@@ -22,7 +22,7 @@ struct GLMTabView: View {
                         }
                     }
                     if case .rateLimited = glmService.error {
-                        ErrorBannerView(message: "Rate limited — backing off")
+                        ErrorBannerView(message: "Rate limited — retrying", retryDate: glmService.retryDate)
                     }
                     UsageCardView(
                         icon: "z.square",

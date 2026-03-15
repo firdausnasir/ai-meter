@@ -26,10 +26,11 @@ struct QuotaChartView: View {
             let points = historyService.downsampledPoints(for: selectedRange)
 
             if points.isEmpty {
-                Text("No history yet")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 80, alignment: .center)
+                EmptyStateView(
+                    icon: "chart.line.uptrend.xyaxis",
+                    message: "No history yet",
+                    hint: "Quota trends will appear as data is collected"
+                )
             } else {
                 chartView(points: points)
             }

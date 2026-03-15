@@ -16,7 +16,7 @@ struct CopilotTabView: View {
                             Task { await copilotService.fetch() }
                         }
                     } else if case .rateLimited = copilotService.error {
-                        ErrorBannerView(message: "Rate limited — retrying automatically")
+                        ErrorBannerView(message: "Rate limited — retrying", retryDate: copilotService.retryDate)
                     }
                     if let resetText = ResetTimeFormatter.format(copilot.resetDate, style: .dayTime, timeZone: timeZone) {
                         Text("Reset \(resetText)")

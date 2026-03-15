@@ -43,21 +43,26 @@ struct ModelUsageView: View {
             .cornerRadius(AppRadius.button)
 
             if statsService.isLoading && statsService.models.isEmpty && statsService.selectedRange != .allTime {
-                HStack(spacing: 6) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Scanning logs…")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                VStack(spacing: 4) {
+                    SkeletonBlock(height: 6)
+                    ForEach(0..<2, id: \.self) { _ in
+                        HStack(spacing: 6) {
+                            SkeletonBlock(height: 6, width: 6)
+                            SkeletonBlock(height: 11, width: 60)
+                            Spacer()
+                            SkeletonBlock(height: 10, width: 40)
+                            SkeletonBlock(height: 10, width: 40)
+                        }
+                    }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+                .modifier(ShimmerModifier())
+                .padding(.vertical, 4)
             } else if statsService.models.isEmpty {
-                Text("No usage in this period")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                EmptyStateView(
+                    icon: "cpu",
+                    message: "No usage in this period",
+                    hint: "Try selecting a different time range"
+                )
             } else {
                 // Multi-color bar
                 if statsService.totalTokens > 0 {

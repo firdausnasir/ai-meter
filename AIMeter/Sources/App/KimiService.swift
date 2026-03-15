@@ -1,18 +1,8 @@
 import Foundation
 
 @MainActor
-final class KimiService: PollingServiceBase {
+final class KimiService: HTTPPollingService {
     @Published var kimiData: KimiUsageData = .empty
-    @Published var isStale: Bool = false
-    @Published var error: KimiError? = nil
-
-    private var refreshInterval: TimeInterval = 60
-
-    enum KimiError: Equatable {
-        case noKey
-        case fetchFailed
-        case rateLimited(retryAfter: TimeInterval)
-    }
 
     /// Resolve API key: Keychain first, env var fallback
     static func resolveAPIKey() -> String? {
@@ -34,76 +24,41 @@ final class KimiService: PollingServiceBase {
         return false
     }
 
-    override func start(interval: TimeInterval = 60) {
-        self.refreshInterval = interval
-        if let cached = SharedDefaults.loadKimi() {
-            self.kimiData = cached
-            self.isStale = Date().timeIntervalSince(cached.fetchedAt) > interval * 2
-        }
-        super.start(interval: interval)
+    override func resolveAPIKey() -> String? {
+        KimiService.resolveAPIKey()
     }
 
-    override func tick() async {
-        await fetch()
-    }
-
-    func fetch() async {
-        guard let apiKey = KimiService.resolveAPIKey() else {
-            self.error = .noKey
-            return
-        }
-
-        guard let url = URL(string: "https://api.moonshot.cn/v1/users/me/balance") else { return }
+    override func buildRequest(apiKey: String) -> URLRequest? {
+        guard let url = URL(string: AppConstants.API.kimiBalanceURL) else { return nil }
         var request = URLRequest(url: url)
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = 10
+        return request
+    }
 
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            // HTTP status check
-            if let http = response as? HTTPURLResponse {
-                if http.statusCode == 429 {
-                    let retryAfter = http.value(forHTTPHeaderField: "retry-after")
-                        .flatMap { TimeInterval($0) } ?? 60
-                    self.error = .rateLimited(retryAfter: retryAfter)
-                    self.isStale = true
-                    rescheduleTimer(interval: retryAfter + 5)
-                    return
-                }
-                guard (200...299).contains(http.statusCode) else {
-                    self.isStale = true
-                    self.error = .fetchFailed
-                    return
-                }
-            }
-
-            let decoded = try JSONDecoder().decode(KimiBalanceResponse.self, from: data)
-            guard decoded.code == 0 else {
-                self.isStale = true
-                self.error = .fetchFailed
-                return
-            }
-
-            let cashBalance = decoded.data.cashBalance
-            let voucherBalance = decoded.data.voucherBalance
-            let totalBalance = cashBalance + voucherBalance
-
-            self.kimiData = KimiUsageData(
-                cashBalance: cashBalance,
-                voucherBalance: voucherBalance,
-                totalBalance: totalBalance,
-                fetchedAt: Date()
-            )
-            self.isStale = false
-            if case .rateLimited = self.error { rescheduleTimer(interval: refreshInterval) }
-            self.error = nil
-            SharedDefaults.saveKimi(self.kimiData)
-            NotificationManager.shared.check(metrics: NotificationManager.metrics(from: self.kimiData))
-        } catch {
-            self.isStale = true
-            self.error = .fetchFailed
+    override func loadCachedData(staleThreshold: TimeInterval) {
+        if let cached = SharedDefaults.loadKimi() {
+            self.kimiData = cached
+            self.isStale = Date().timeIntervalSince(cached.fetchedAt) > staleThreshold
         }
+    }
+
+    override func parseAndApply(data: Data) throws {
+        let decoded = try JSONDecoder().decode(KimiBalanceResponse.self, from: data)
+        guard decoded.code == 0 else { throw URLError(.badServerResponse) }
+
+        let cashBalance = decoded.data.cashBalance
+        let voucherBalance = decoded.data.voucherBalance
+        let totalBalance = cashBalance + voucherBalance
+
+        self.kimiData = KimiUsageData(
+            cashBalance: cashBalance,
+            voucherBalance: voucherBalance,
+            totalBalance: totalBalance,
+            fetchedAt: Date()
+        )
+        SharedDefaults.saveKimi(self.kimiData)
+        NotificationManager.shared.check(metrics: NotificationManager.metrics(from: self.kimiData))
     }
 }
 

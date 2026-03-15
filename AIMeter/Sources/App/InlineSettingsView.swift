@@ -5,6 +5,8 @@ struct InlineSettingsView: View {
     @ObservedObject var updaterManager: UpdaterManager
     @ObservedObject var authManager: SessionAuthManager
     @Binding var selectedTab: Tab
+    @EnvironmentObject var historyService: QuotaHistoryService
+    @EnvironmentObject var copilotHistoryService: CopilotHistoryService
     @AppStorage("refreshInterval") private var refreshInterval: Double = 60
     @AppStorage("timezoneOffset") private var timezoneOffset: Int = TimeZone.current.secondsFromGMT() / 3600
     @State private var launchAtLogin = false
@@ -18,6 +20,14 @@ struct InlineSettingsView: View {
     @AppStorage("notifyWarning") private var notifyWarning: Int = 80
     @AppStorage("notifyCritical") private var notifyCritical: Int = 90
     @AppStorage("navigationStyle") private var navigationStyle: String = "tabbar"
+    @AppStorage("colorThresholdElevated") private var colorElevated: Int = 50
+    @AppStorage("colorThresholdHigh") private var colorHigh: Int = 80
+    @AppStorage("colorThresholdCritical") private var colorCritical: Int = 95
+    @AppStorage("perProviderRefresh") private var perProviderRefresh: Bool = false
+    @AppStorage("refreshClaude") private var refreshClaude: Double = 60
+    @AppStorage("refreshCopilot") private var refreshCopilot: Double = 60
+    @AppStorage("refreshGLM") private var refreshGLM: Double = 120
+    @AppStorage("refreshKimi") private var refreshKimi: Double = 300
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -242,6 +252,64 @@ struct InlineSettingsView: View {
                             .menuStyle(.borderlessButton)
                             .fixedSize()
                         }
+
+                        Toggle("Per-provider intervals", isOn: $perProviderRefresh)
+                            .font(.system(size: 12))
+
+                        if perProviderRefresh {
+                            providerRefreshRow("Claude", value: $refreshClaude)
+                            providerRefreshRow("Copilot", value: $refreshCopilot)
+                            providerRefreshRow("GLM", value: $refreshGLM)
+                            providerRefreshRow("Kimi", value: $refreshKimi)
+                        }
+
+                        Divider().opacity(0.3)
+
+                        Text("Color Thresholds")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+
+                        settingsRow("Normal", labelColor: .green) {
+                            Menu {
+                                ForEach([30, 40, 50, 60], id: \.self) { val in
+                                    Button("\(val)%") { colorElevated = val }
+                                }
+                            } label: {
+                                Text("<\(colorElevated)%")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.white)
+                            }
+                            .menuStyle(.borderlessButton)
+                            .fixedSize()
+                        }
+
+                        settingsRow("Elevated", labelColor: .yellow) {
+                            Menu {
+                                ForEach([60, 70, 75, 80], id: \.self) { val in
+                                    Button("\(val)%") { colorHigh = val }
+                                }
+                            } label: {
+                                Text("<\(colorHigh)%")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.white)
+                            }
+                            .menuStyle(.borderlessButton)
+                            .fixedSize()
+                        }
+
+                        settingsRow("High", labelColor: .orange) {
+                            Menu {
+                                ForEach([85, 90, 95, 98], id: \.self) { val in
+                                    Button("\(val)%") { colorCritical = val }
+                                }
+                            } label: {
+                                Text("<\(colorCritical)%")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.white)
+                            }
+                            .menuStyle(.borderlessButton)
+                            .fixedSize()
+                        }
                     }
                 }
 
@@ -332,6 +400,18 @@ struct InlineSettingsView: View {
                     }
                 }
 
+                // MARK: - Shortcuts
+                settingsSection("Shortcuts", icon: "keyboard") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        shortcutRow("⌘R", "Refresh all providers")
+                        shortcutRow("⌘1–4", "Jump to provider tab")
+                        shortcutRow("⌘5", "Open Settings")
+                        shortcutRow("← →", "Navigate between tabs")
+                        shortcutRow("Esc", "Return from Settings")
+                        shortcutRow("⌘Q", "Quit AIMeter")
+                    }
+                }
+
                 // MARK: - General
                 settingsSection("General", icon: "gear") {
                     VStack(alignment: .leading, spacing: 8) {
@@ -375,6 +455,56 @@ struct InlineSettingsView: View {
                                 .font(.system(size: 12, design: .monospaced))
                                 .foregroundColor(.secondary)
                         }
+
+                        Divider().opacity(0.3)
+
+                        Menu {
+                            Button("Claude Quota History") {
+                                ExportService.exportQuotaHistory(from: historyService)
+                            }
+                            Button("Copilot Quota History") {
+                                ExportService.exportCopilotHistory(from: copilotHistoryService)
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 11))
+                                Text("Export History…")
+                                    .font(.system(size: 12))
+                            }
+                            .foregroundColor(.accentColor)
+                        }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
+
+                        Divider().opacity(0.3)
+
+                        Button {
+                            refreshInterval = 60
+                            timezoneOffset = TimeZone.current.secondsFromGMT() / 3600
+                            navigationStyle = "tabbar"
+                            menuBarProvider = MenuBarProvider.claude.rawValue
+                            notificationsEnabled = false
+                            notifyWarning = 80
+                            notifyCritical = 90
+                            colorElevated = 50
+                            colorHigh = 80
+                            colorCritical = 95
+                            perProviderRefresh = false
+                            refreshClaude = 60
+                            refreshCopilot = 60
+                            refreshGLM = 120
+                            refreshKimi = 300
+                        } label: {
+                            HStack {
+                                Image(systemName: "arrow.counterclockwise")
+                                    .font(.system(size: 11))
+                                Text("Reset to Defaults")
+                                    .font(.system(size: 12))
+                            }
+                            .foregroundColor(.orange)
+                        }
+                        .buttonStyle(.plain)
 
                         Divider().opacity(0.3)
 
@@ -437,6 +567,36 @@ struct InlineSettingsView: View {
                 .foregroundColor(labelColor)
             Spacer()
             content()
+        }
+    }
+
+    private func providerRefreshRow(_ label: String, value: Binding<Double>) -> some View {
+        let options: [(String, Double)] = [("30s", 30), ("1m", 60), ("2m", 120), ("5m", 300)]
+        return settingsRow("  \(label)") {
+            Menu {
+                ForEach(options, id: \.1) { opt in
+                    Button(opt.0) { value.wrappedValue = opt.1 }
+                }
+            } label: {
+                Text(options.first(where: { $0.1 == value.wrappedValue })?.0 ?? "\(Int(value.wrappedValue))s")
+                    .font(.system(size: 12))
+                    .foregroundColor(.white)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+        }
+    }
+
+    private func shortcutRow(_ shortcut: String, _ description: String) -> some View {
+        HStack {
+            Text(shortcut)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundColor(.white)
+                .frame(width: 50, alignment: .leading)
+            Text(description)
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+            Spacer()
         }
     }
 }

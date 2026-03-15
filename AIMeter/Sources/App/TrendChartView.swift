@@ -9,7 +9,7 @@ struct TrendChartView: View {
         VStack(alignment: .leading, spacing: 8) {
             // Header with range picker
             HStack {
-                Text("Trend")
+                Text("Daily Usage")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.white)
                 Spacer()
@@ -37,16 +37,23 @@ struct TrendChartView: View {
                 .cornerRadius(AppRadius.button)
             }
 
-            if statsService.isLoading && statsService.trendPoints.allSatisfy({ $0.messages == 0 }) {
-                HStack(spacing: 6) {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Loading trend data...")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+            if statsService.isLoading && statsService.trendPoints.allSatisfy({ $0.messages == 0 && $0.tokens == 0 }) {
+                VStack(spacing: 4) {
+                    SkeletonBlock(height: 80)
+                    HStack(spacing: 0) {
+                        ForEach(0..<3, id: \.self) { _ in
+                            SkeletonBlock(height: 20)
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+                .modifier(ShimmerModifier())
+            } else if statsService.trendPoints.allSatisfy({ $0.messages == 0 && $0.tokens == 0 }) {
+                EmptyStateView(
+                    icon: "chart.bar.fill",
+                    message: "No usage data yet",
+                    hint: "Start using Claude Code to see daily trends"
+                )
             } else {
                 chartView
                 summaryRow
@@ -72,7 +79,7 @@ struct TrendChartView: View {
                     x: .value("Date", point.date, unit: .day),
                     y: .value("Messages", point.messages)
                 )
-                .foregroundStyle(Color.orange.opacity(0.7))
+                .foregroundStyle(ProviderTheme.claude.accentColor.opacity(0.8))
                 .cornerRadius(2)
             }
 
@@ -99,7 +106,7 @@ struct TrendChartView: View {
                             VStack(spacing: 2) {
                                 Text("\(nearest.messages) msgs")
                                     .font(.system(size: 8))
-                                    .foregroundColor(.orange)
+                                    .foregroundColor(ProviderTheme.claude.accentColor)
                                 Text("\(formatCompact(nearest.tokens)) tok")
                                     .font(.system(size: 8))
                                     .foregroundColor(.cyan)
@@ -134,8 +141,9 @@ struct TrendChartView: View {
             }
         }
         .chartYScale(domain: 0...(max(maxMessages, 1)))
+        .chartXScale(domain: Calendar.current.startOfDay(for: Calendar.current.date(byAdding: .day, value: -trendDays, to: Date())!)...Calendar.current.startOfDay(for: Date().addingTimeInterval(86400)))
         .chartLegend(.hidden)
-        .frame(height: 80)
+        .frame(height: 100)
         .chartOverlay { proxy in
             GeometryReader { _ in
                 Rectangle()
@@ -157,10 +165,18 @@ struct TrendChartView: View {
         points.min(by: { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) })
     }
 
+    private var trendDays: Int {
+        switch statsService.trendRange {
+        case .sevenDay: return 6
+        case .fourteenDay: return 13
+        case .thirtyDay: return 29
+        }
+    }
+
     private var xAxisStride: Int {
         switch statsService.trendRange {
         case .sevenDay: return 1
-        case .fourteenDay: return 2
+        case .fourteenDay: return 3
         case .thirtyDay: return 5
         }
     }
@@ -175,7 +191,7 @@ struct TrendChartView: View {
         let avgMsgs = daysWithData > 0 ? totalMsgs / daysWithData : 0
 
         return HStack(spacing: 0) {
-            summaryPill(icon: "circle", color: .orange, text: "\(avgMsgs) msgs/day")
+            summaryPill(icon: "circle", color: ProviderTheme.claude.accentColor, text: "\(avgMsgs) msgs/day")
             summaryPill(icon: "sum", color: .white, text: "\(formatCompact(totalMsgs)) total msgs")
             summaryPill(icon: "number", color: .cyan, text: "\(formatCompact(totalTokens)) tokens")
         }

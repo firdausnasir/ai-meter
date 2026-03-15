@@ -8,7 +8,10 @@ class PollingServiceBase: ObservableObject {
         timer?.invalidate()
         Task { await tick() }
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            Task { [weak self] in await self?.tick() }
+            Task { [weak self] in
+                guard NetworkMonitor.shared.isConnected else { return }
+                await self?.tick()
+            }
         }
     }
 
@@ -24,7 +27,10 @@ class PollingServiceBase: ObservableObject {
     func rescheduleTimer(interval: TimeInterval) {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            Task { [weak self] in await self?.tick() }
+            Task { [weak self] in
+                guard NetworkMonitor.shared.isConnected else { return }
+                await self?.tick()
+            }
         }
     }
 
