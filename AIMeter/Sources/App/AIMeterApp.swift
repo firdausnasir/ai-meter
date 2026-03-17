@@ -200,20 +200,43 @@ struct MenuBarLabel: View {
         }
     }
 
+    private var usageColor: Color {
+        UsageColor.forUtilization(highestUtilization)
+    }
+
+    private var menuBarImage: NSImage? {
+        let content = MenuBarLabelContent(
+            labelText: labelText,
+            color: usageColor,
+            opacity: isRefreshing ? 0.5 : 1.0
+        )
+        return MenuBarImageRenderer.render(content)
+    }
+
+    var body: some View {
+        if let img = menuBarImage {
+            Image(nsImage: img)
+        } else {
+            Image(systemName: "sparkles")
+        }
+    }
+}
+
+private struct MenuBarLabelContent: View {
+    let labelText: String
+    let color: Color
+    let opacity: Double
+
     var body: some View {
         HStack(spacing: 3) {
             Image(systemName: "sparkles")
-                .foregroundStyle(UsageColor.forUtilization(highestUtilization))
-                .opacity(isRefreshing ? 0.3 : 1.0)
-                .animation(
-                    isRefreshing
-                        ? .easeInOut(duration: 0.3).repeatForever(autoreverses: true)
-                        : .linear(duration: 0),
-                    value: isRefreshing
-                )
+                .foregroundStyle(color)
+                .opacity(opacity)
             Text(labelText)
                 .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundStyle(UsageColor.forUtilization(highestUtilization))
+                .foregroundStyle(color)
+                .opacity(opacity)
         }
+        .fixedSize()
     }
 }
