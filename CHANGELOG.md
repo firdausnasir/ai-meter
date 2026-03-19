@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.0] - 2026-03-19
+
+### Added
+
+- Monthly Recap — Spotify Wrapped-style usage summary with scrollable card UI in a dedicated window
+  - Claude stats: average/peak session & weekly utilization, plan name, peak date
+  - Copilot stats: chat, completions, premium utilization with progress bars
+  - Highlights card with power user badge (avg > 70%)
+  - Shareable PNG export (1080×1920) via native share sheet
+  - Auto-generates on 1st of month with notification, also accessible from settings
+- Settings Window — dedicated sidebar settings window (Cmd+, to open)
+  - Sidebar navigation: Accounts, Display, Notifications, Shortcuts, General
+  - Replaces inline settings in popover for more room
+- Debug tools (#if DEBUG) — test buttons for recap window and notifications
+- RecapService with monthly aggregation, persistence (~/.config/aimeter/recaps/), and auto-trigger
+
+### Changed
+
+- History retention extended from 7 to 31 days (required for monthly recaps)
+- Notifications now use osascript backend (fixes delivery for ad-hoc signed builds)
+- Settings tab (Cmd+6 / gear icon) now opens the settings window instead of inline view
+- Added Cmd+, keyboard shortcut to open settings
+
+### Fixed
+
+- December recap crash — month+1 overflow (13) causing force-unwrap nil
+- Copilot peakDate wrong for unlimited-chat plans (now uses max across all metrics)
+- RecapService lifetime bug — promoted from local var to @State to survive task restarts
+- Notification permission dialog never appearing for LSUIElement apps
+
 ## [1.20.0] - 2026-03-16
 
 ### Added

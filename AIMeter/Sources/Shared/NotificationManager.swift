@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import UserNotifications
 
@@ -59,12 +60,34 @@ final class NotificationManager {
     }
 
     func requestPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in
-            let snooze1h = UNNotificationAction(identifier: "SNOOZE_1H", title: "Snooze 1h", options: [])
-            let snoozeReset = UNNotificationAction(identifier: "SNOOZE_RESET", title: "Snooze until reset", options: [])
-            let category = UNNotificationCategory(identifier: "USAGE_ALERT", actions: [snooze1h, snoozeReset], intentIdentifiers: [])
-            UNUserNotificationCenter.current().setNotificationCategories([category])
+        // NSUserNotification doesn't require explicit permission.
+        // Register UNUserNotification categories for when we switch to signed builds.
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            print("[NotificationManager] UNAuth granted: \(granted), error: \(String(describing: error))")
         }
+
+        // Register categories
+        let snooze1h = UNNotificationAction(identifier: "SNOOZE_1H", title: "Snooze 1h", options: [])
+        let snoozeReset = UNNotificationAction(identifier: "SNOOZE_RESET", title: "Snooze until reset", options: [])
+        let usageAlertCategory = UNNotificationCategory(identifier: "USAGE_ALERT", actions: [snooze1h, snoozeReset], intentIdentifiers: [])
+        let viewRecap = UNNotificationAction(identifier: "VIEW_RECAP", title: "View Recap", options: [.foreground])
+        let recapCategory = UNNotificationCategory(identifier: "RECAP_READY", actions: [viewRecap], intentIdentifiers: [])
+        UNUserNotificationCenter.current().setNotificationCategories([usageAlertCategory, recapCategory])
+
+    }
+
+    func fireTestNotification() {
+        fireViaOsascript(title: "⚠️ Claude Session at 85%", body: "Resets in 2h 30m")
+    }
+
+    func fireRecapNotification(for month: Date) {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "MMMM"
+        let monthName = fmt.string(from: month)
+        fireViaOsascript(
+            title: "Your \(monthName) recap is ready!",
+            body: "See how you used AI this month."
+        )
     }
 
     func check(metrics: [MetricSnapshot]) {
@@ -100,17 +123,27 @@ final class NotificationManager {
     }
 
     private func fire(metric: MetricSnapshot, level: NotificationLevel) {
-        let content = UNMutableNotificationContent()
         let prefix = level == .critical ? "⚠️ " : ""
-        content.title = "\(prefix)\(metric.label) at \(metric.utilization)%"
-        if let detail = metric.detail { content.body = detail }
-        content.categoryIdentifier = "USAGE_ALERT"
-        let request = UNNotificationRequest(
-            identifier: "\(metric.key).\(level.rawValue)",
-            content: content,
-            trigger: nil
-        )
-        UNUserNotificationCenter.current().add(request)
+        let title = "\(prefix)\(metric.label) at \(metric.utilization)%"
+        fireViaOsascript(title: title, body: metric.detail)
+    }
+
+    private func fireViaOsascript(title: String, body: String?, sound: Bool = true) {
+        DispatchQueue.global(qos: .utility).async {
+            // Escape double quotes for AppleScript
+            let escapedTitle = title.replacingOccurrences(of: "\"", with: "\\\"")
+            let escapedBody = (body ?? "").replacingOccurrences(of: "\"", with: "\\\"")
+
+            var script = "display notification \"\(escapedBody)\" with title \"\(escapedTitle)\""
+            if sound {
+                script += " sound name \"default\""
+            }
+
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            task.arguments = ["-e", script]
+            try? task.run()
+        }
     }
 
     func handleSnoozeAction(_ actionIdentifier: String) {
@@ -122,6 +155,14 @@ final class NotificationManager {
             defaults.set(Date().addingTimeInterval(18000).timeIntervalSince1970, forKey: "snoozeUntil")
         default:
             break
+        }
+    }
+
+    func handleNotificationAction(_ actionIdentifier: String, for categoryIdentifier: String) {
+        if categoryIdentifier == "RECAP_READY" && actionIdentifier == "VIEW_RECAP" {
+            NotificationCenter.default.post(name: .openLatestRecap, object: nil)
+        } else {
+            handleSnoozeAction(actionIdentifier)
         }
     }
 
@@ -198,4 +239,8 @@ private extension Int {
     func nonZeroOrDefault(_ value: Int) -> Int {
         self == 0 ? value : self
     }
+}
+
+extension Notification.Name {
+    static let openLatestRecap = Notification.Name("com.khairul.aimeter.openLatestRecap")
 }

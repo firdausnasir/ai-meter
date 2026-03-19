@@ -39,6 +39,7 @@ enum TabIcon {
 
 struct TabBarView: View {
     @Binding var selectedTab: Tab
+    var onSettingsTap: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 4) {
@@ -48,7 +49,20 @@ struct TabBarView: View {
             tabButton(.kimi,     icon: .asset("kimi"),      label: "Kimi")
             tabButton(.codex,    icon: .asset("codex"),     label: "Codex")
             Spacer()
-            tabButton(.settings, icon: .system("gear"),     label: nil)
+            // Gear opens the settings window directly instead of a settings tab
+            Button {
+                onSettingsTap?()
+            } label: {
+                Image(systemName: "gear")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 5)
+                    .background(Color.clear)
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.button))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Settings tab")
         }
     }
 
@@ -160,7 +174,6 @@ struct PopoverView: View {
     @AppStorage("navigationStyle") private var navigationStyle: String = "tabbar"
     @AppStorage("hasSeenRefreshHint") private var hasSeenRefreshHint = false
     @State private var selectedTab: Tab = .claude
-    @State private var previousTab: Tab = .claude
     @State private var slideDirection: Edge = .trailing
     @State private var eventMonitor: Any?
 
@@ -175,6 +188,16 @@ struct PopoverView: View {
         withAnimation(.easeInOut(duration: 0.2)) { selectedTab = newTab }
     }
 
+    private func showSettingsWindow() {
+        SettingsWindowController.show(
+            updaterManager: updaterManager,
+            authManager: authManager,
+            codexAuthManager: codexAuthManager,
+            historyService: historyService,
+            copilotHistoryService: copilotHistoryService
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
@@ -187,68 +210,46 @@ struct PopoverView: View {
 
                 if !useTabBar {
                     // Dropdown navigation
-                    if selectedTab != .settings {
-                        Menu {
-                            Button { switchTab(to: .claude) }   label: { Label { Text("Claude") } icon: { Image("claude-small").renderingMode(.template) } }
-                            Button { switchTab(to: .copilot) }  label: { Label { Text("Copilot") } icon: { Image("copilot-small").renderingMode(.template) } }
-                            Button { switchTab(to: .glm) }      label: { Label { Text("GLM") } icon: { Image("glm-small").renderingMode(.template) } }
-                            Button { switchTab(to: .kimi) }     label: { Label { Text("Kimi") } icon: { Image("kimi-small").renderingMode(.template) } }
-                            Button { switchTab(to: .codex) }    label: { Label { Text("Codex") } icon: { Image("codex-small").renderingMode(.template) } }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(selectedTab.displayName)
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.white)
-                            }
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 5)
-                            .background(Color.white.opacity(0.08))
-                            .clipShape(RoundedRectangle(cornerRadius: AppRadius.button))
+                    Menu {
+                        Button { switchTab(to: .claude) }   label: { Label { Text("Claude") } icon: { Image("claude-small").renderingMode(.template) } }
+                        Button { switchTab(to: .copilot) }  label: { Label { Text("Copilot") } icon: { Image("copilot-small").renderingMode(.template) } }
+                        Button { switchTab(to: .glm) }      label: { Label { Text("GLM") } icon: { Image("glm-small").renderingMode(.template) } }
+                        Button { switchTab(to: .kimi) }     label: { Label { Text("Kimi") } icon: { Image("kimi-small").renderingMode(.template) } }
+                        Button { switchTab(to: .codex) }    label: { Label { Text("Codex") } icon: { Image("codex-small").renderingMode(.template) } }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(selectedTab.displayName)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.white)
                         }
-                        .menuStyle(.borderlessButton)
-                        .fixedSize()
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(Color.white.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.button))
                     }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
 
-                    // Settings icon / Back button (dropdown mode only)
-                    if selectedTab == .settings {
-                        Button {
-                            switchTab(to: previousTab)
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 11, weight: .semibold))
-                                Text("Back")
-                                    .font(.system(size: 12, weight: .medium))
-                            }
+                    // Settings icon (dropdown mode only) — opens dedicated window
+                    Button {
+                        showSettingsWindow()
+                    } label: {
+                        Image(systemName: "gear")
+                            .font(.system(size: 13))
                             .foregroundColor(.secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background(Color.white.opacity(0.08))
-                            .clipShape(RoundedRectangle(cornerRadius: AppRadius.button))
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        Button {
-                            previousTab = selectedTab
-                            switchTab(to: .settings)
-                        } label: {
-                            Image(systemName: "gear")
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
-                                .padding(6)
-                                .background(Color.clear)
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Settings")
+                            .padding(6)
+                            .background(Color.clear)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Settings")
                 }
             }
             .padding(.bottom, useTabBar ? 4 : 12)
 
             // Tab bar (when enabled)
             if useTabBar {
-                TabBarView(selectedTab: $selectedTab)
+                TabBarView(selectedTab: $selectedTab, onSettingsTap: showSettingsWindow)
                     .padding(.bottom, 8)
             }
 
@@ -287,7 +288,7 @@ struct PopoverView: View {
                 case .codex:
                     CodexTabView(codexService: codexService, codexAuthManager: codexAuthManager, timeZone: configuredTimeZone)
                 case .settings:
-                    InlineSettingsView(updaterManager: updaterManager, authManager: authManager, codexAuthManager: codexAuthManager, selectedTab: $selectedTab)
+                    EmptyView()
                 }
             }
             .id(selectedTab)
@@ -375,14 +376,6 @@ struct PopoverView: View {
         .frame(width: 360)
         .onAppear {
             eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                // Escape — return from Settings to previous tab
-                if event.keyCode == 53 {
-                    if selectedTab == .settings {
-                        switchTab(to: previousTab)
-                        return nil
-                    }
-                }
-
                 // Arrow keys — navigate between provider tabs (no modifier needed)
                 if event.keyCode == 123 { // left arrow
                     let tabs: [Tab] = [.claude, .copilot, .glm, .kimi, .codex]
@@ -419,9 +412,8 @@ struct PopoverView: View {
                 case "5":
                     switchTab(to: .codex)
                     return nil
-                case "6":
-                    previousTab = selectedTab
-                    switchTab(to: .settings)
+                case "6", ",":
+                    showSettingsWindow()
                     return nil
                 default:
                     return event

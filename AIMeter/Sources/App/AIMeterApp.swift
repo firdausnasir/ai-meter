@@ -4,8 +4,13 @@ import UserNotifications
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationDelegate()
 
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
+    }
+
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
-        NotificationManager.shared.handleSnoozeAction(response.actionIdentifier)
+        let category = response.notification.request.content.categoryIdentifier
+        NotificationManager.shared.handleNotificationAction(response.actionIdentifier, for: category)
         completionHandler()
     }
 }
@@ -50,6 +55,7 @@ struct AIMeterApp: App {
     @AppStorage("refreshKimi") private var refreshKimi: Double = 300
     @AppStorage("refreshCodex") private var refreshCodex: Double = 300
     @State private var isRefreshing = false
+    @State private var recapService: RecapService?
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
     private func interval(for provider: MenuBarProvider) -> Double {
@@ -112,12 +118,26 @@ struct AIMeterApp: App {
                     .environmentObject(historyService)
                     .task {
                         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+                        NotificationManager.shared.requestPermission()
                         service.start(interval: interval(for: .claude), authManager: authManager, historyService: historyService)
                         copilotService.start(interval: interval(for: .copilot), historyService: copilotHistoryService)
                         glmService.start(interval: interval(for: .glm))
                         kimiService.start(interval: interval(for: .kimi))
                         codexService.start(interval: interval(for: .codex), authManager: codexAuthManager)
                         statsService.start(interval: interval(for: .claude))
+
+                        if recapService == nil {
+                            recapService = RecapService(quotaHistoryService: historyService, copilotHistoryService: copilotHistoryService)
+                        }
+                        let recapSvc = recapService!
+                        recapSvc.checkAndGenerateRecap(notificationManager: NotificationManager.shared)
+
+                        for await _ in NotificationCenter.default.notifications(named: .openLatestRecap) {
+                            let recaps = recapSvc.loadSavedRecaps()
+                            if let latest = recaps.last {
+                                RecapWindowController.show(recap: latest)
+                            }
+                        }
                     }
                     .onChange(of: refreshInterval) { _, _ in restartAll() }
                     .onChange(of: perProviderRefresh) { _, _ in restartAll() }

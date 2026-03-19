@@ -12,7 +12,7 @@ class HistoryServiceBase<History: Codable, DataPoint>: ObservableObject {
     private var terminationObserver: Any?
     private let logger = Logger(subsystem: "com.khairul.aimeter", category: "HistoryService")
 
-    static var retentionInterval: TimeInterval { 7 * 86400 }
+    static var retentionInterval: TimeInterval { 31 * 86400 }
     private static var flushInterval: TimeInterval { 300 }
 
     /// Subclasses must provide the file URL for persistence
