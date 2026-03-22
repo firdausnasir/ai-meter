@@ -370,6 +370,7 @@ struct DisplaySettingsSection: View {
     @AppStorage("refreshKimi") private var refreshKimi: Double = 300
     @AppStorage("refreshCodex") private var refreshCodex: Double = 300
     @AppStorage("providerTabOrder") private var providerTabOrder: String = Tab.defaultOrderString
+    @AppStorage("loadingPattern") private var loadingPattern: String = LoadingPattern.fade.rawValue
 
     private var orderedTabs: [Tab] { decodedProviderOrder(providerTabOrder) }
 
@@ -410,6 +411,20 @@ struct DisplaySettingsSection: View {
                         }
                     } label: {
                         Text(MenuBarDisplayMode(rawValue: menuBarDisplayMode)?.displayName ?? menuBarDisplayMode)
+                            .font(.system(size: 12))
+                            .foregroundColor(.white)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                }
+
+                settingsRow("Loading animation") {
+                    Menu {
+                        ForEach(LoadingPattern.allCases, id: \.rawValue) { pattern in
+                            Button(pattern.displayName) { loadingPattern = pattern.rawValue }
+                        }
+                    } label: {
+                        Text(LoadingPattern(rawValue: loadingPattern)?.displayName ?? loadingPattern)
                             .font(.system(size: 12))
                             .foregroundColor(.white)
                     }
@@ -724,6 +739,7 @@ struct GeneralSettingsSection: View {
     @AppStorage("refreshCodex") private var refreshCodex: Double = 300
     @AppStorage("providerTabOrder") private var providerTabOrder: String = Tab.defaultOrderString
     @AppStorage("checkProviderStatus") private var checkProviderStatus: Bool = true
+    @AppStorage("loadingPattern") private var loadingPattern: String = LoadingPattern.fade.rawValue
 
     @State private var launchAtLogin = false
 
@@ -819,6 +835,7 @@ struct GeneralSettingsSection: View {
                     refreshCodex = 300
                     hidePersonalInfo = false
                     providerTabOrder = Tab.defaultOrderString
+                    loadingPattern = LoadingPattern.fade.rawValue
                 } label: {
                     HStack {
                         Image(systemName: "arrow.counterclockwise")

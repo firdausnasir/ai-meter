@@ -220,6 +220,15 @@ struct MenuBarLabel: View {
     let codexData: CodexUsageData
     let isRefreshing: Bool
 
+    @AppStorage("loadingPattern") private var loadingPatternRaw: String = LoadingPattern.fade.rawValue
+    @State private var animationPhase: Double = 0
+    // Cycle duration in seconds — fast enough to feel smooth, slow enough to be subtle
+    private let cycleDuration: Double = 2.0
+
+    private var loadingPattern: LoadingPattern {
+        LoadingPattern(rawValue: loadingPatternRaw) ?? .fade
+    }
+
     // Format pace delta as "+5%", "-3%", or "0%"
     private func paceString(from delta: Double) -> String {
         let rounded = Int(delta.rounded())
@@ -287,7 +296,7 @@ struct MenuBarLabel: View {
         let content = MenuBarLabelContent(
             labelText: labelText,
             color: usageColor,
-            opacity: isRefreshing ? 0.5 : 1.0
+            opacity: isRefreshing ? loadingPattern.opacity(at: animationPhase) : 1.0
         )
         return MenuBarImageRenderer.render(content)
     }
@@ -295,8 +304,28 @@ struct MenuBarLabel: View {
     var body: some View {
         if let img = menuBarImage {
             Image(nsImage: img)
+                // Drive the animation: tick every ~50ms when refreshing, stop when done
+                .onAppear {
+                    if isRefreshing { startAnimation() }
+                }
+                .onChange(of: isRefreshing) { _, refreshing in
+                    if refreshing { startAnimation() } else { animationPhase = 0 }
+                }
         } else {
             Image(systemName: "sparkles")
+        }
+    }
+
+    private func startAnimation() {
+        let start = Date()
+        // Use a repeating timer to update phase; cancelled automatically when isRefreshing goes false
+        Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { timer in
+            guard isRefreshing else {
+                timer.invalidate()
+                return
+            }
+            let elapsed = Date().timeIntervalSince(start)
+            animationPhase = (elapsed / cycleDuration).truncatingRemainder(dividingBy: 1.0)
         }
     }
 }
