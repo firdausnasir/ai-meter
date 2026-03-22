@@ -3,6 +3,8 @@ import SwiftUI
 private struct SessionPaceView: View {
     let pace: UsagePace.Result
 
+    private let paceHelpText = "Pace shows whether you're using quota faster or slower than an ideal steady rate across the 5-hour window. Green means you're on track or have plenty left. Yellow means slightly fast. Red means you may run out before the window resets."
+
     private var paceColor: Color {
         switch pace.stage {
         case .farBehind, .behind, .slightlyBehind, .onTrack:
@@ -35,6 +37,7 @@ private struct SessionPaceView: View {
             .foregroundColor(paceColor)
             .padding(.horizontal, 4)
             .accessibilityLabel(label)
+            .help(paceHelpText)
     }
 }
 
