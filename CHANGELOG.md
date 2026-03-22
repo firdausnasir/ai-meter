@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.26.0] - 2026-03-22
+
+### Added
+
+- Provider Drag-to-Reorder — customize tab order via up/down buttons in Settings → Display
+  - Tab enum refactored from hardcoded to data-driven with `@AppStorage("providerTabOrder")`
+  - TabBarView, dropdown menu, and keyboard navigation all follow the stored order
+  - `decodedProviderOrder` handles missing/corrupt values gracefully
+  - Reset to Defaults restores original order
+
 ## [1.25.0] - 2026-03-22
 
 ### Added

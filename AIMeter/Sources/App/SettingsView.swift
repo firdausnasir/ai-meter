@@ -368,6 +368,9 @@ struct DisplaySettingsSection: View {
     @AppStorage("refreshGLM") private var refreshGLM: Double = 120
     @AppStorage("refreshKimi") private var refreshKimi: Double = 300
     @AppStorage("refreshCodex") private var refreshCodex: Double = 300
+    @AppStorage("providerTabOrder") private var providerTabOrder: String = Tab.defaultOrderString
+
+    private var orderedTabs: [Tab] { decodedProviderOrder(providerTabOrder) }
 
     var body: some View {
         settingsSectionCard {
@@ -491,8 +494,55 @@ struct DisplaySettingsSection: View {
                     .menuStyle(.borderlessButton)
                     .fixedSize()
                 }
+
+                Divider().opacity(0.3)
+
+                Text("Provider Order")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.secondary)
+
+                ForEach(Array(orderedTabs.enumerated()), id: \.element) { idx, tab in
+                    HStack(spacing: 6) {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                        Text(tab.displayName)
+                            .font(.system(size: 12))
+                            .foregroundColor(.white)
+                        Spacer()
+                        // Move up
+                        Button {
+                            moveProvider(from: idx, offset: -1)
+                        } label: {
+                            Image(systemName: "chevron.up")
+                                .font(.system(size: 10))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(idx == 0 ? .secondary.opacity(0.3) : .secondary)
+                        .disabled(idx == 0)
+                        // Move down
+                        Button {
+                            moveProvider(from: idx, offset: 1)
+                        } label: {
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 10))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(idx == orderedTabs.count - 1 ? .secondary.opacity(0.3) : .secondary)
+                        .disabled(idx == orderedTabs.count - 1)
+                    }
+                    .padding(.vertical, 2)
+                }
             }
         }
+    }
+
+    private func moveProvider(from index: Int, offset: Int) {
+        var tabs = orderedTabs
+        let dest = index + offset
+        guard dest >= 0 && dest < tabs.count else { return }
+        tabs.swapAt(index, dest)
+        providerTabOrder = tabs.map(\.rawValue).joined(separator: ",")
     }
 
     private func providerRefreshRow(_ label: String, value: Binding<Double>) -> some View {
@@ -655,6 +705,7 @@ struct GeneralSettingsSection: View {
     @AppStorage("refreshGLM") private var refreshGLM: Double = 120
     @AppStorage("refreshKimi") private var refreshKimi: Double = 300
     @AppStorage("refreshCodex") private var refreshCodex: Double = 300
+    @AppStorage("providerTabOrder") private var providerTabOrder: String = Tab.defaultOrderString
 
     @State private var launchAtLogin = false
 
@@ -743,6 +794,7 @@ struct GeneralSettingsSection: View {
                     refreshKimi = 300
                     refreshCodex = 300
                     hidePersonalInfo = false
+                    providerTabOrder = Tab.defaultOrderString
                 } label: {
                     HStack {
                         Image(systemName: "arrow.counterclockwise")

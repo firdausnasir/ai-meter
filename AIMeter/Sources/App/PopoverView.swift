@@ -2,8 +2,11 @@ import SwiftUI
 
 // MARK: - Tab
 
-enum Tab {
+enum Tab: String {
     case claude, copilot, glm, kimi, codex, settings
+
+    static let defaultOrder: [Tab] = [.claude, .copilot, .glm, .kimi, .codex]
+    static let defaultOrderString = "claude,copilot,glm,kimi,codex"
 
     var displayName: String {
         switch self {
@@ -13,6 +16,28 @@ enum Tab {
         case .kimi:     return "Kimi"
         case .codex:    return "Codex"
         case .settings: return "Settings"
+        }
+    }
+
+    var icon: TabIcon {
+        switch self {
+        case .claude:   return .asset("claude")
+        case .copilot:  return .asset("copilot")
+        case .glm:      return .asset("glm")
+        case .kimi:     return .asset("kimi")
+        case .codex:    return .asset("codex")
+        case .settings: return .system("gear")
+        }
+    }
+
+    var smallImageName: String {
+        switch self {
+        case .claude:   return "claude-small"
+        case .copilot:  return "copilot-small"
+        case .glm:      return "glm-small"
+        case .kimi:     return "kimi-small"
+        case .codex:    return "codex-small"
+        case .settings: return ""
         }
     }
 
@@ -28,6 +53,15 @@ enum Tab {
     }
 }
 
+// Decode the comma-separated providerTabOrder string into an ordered [Tab] array
+func decodedProviderOrder(_ stored: String) -> [Tab] {
+    let parsed = stored.split(separator: ",").compactMap { Tab(rawValue: String($0)) }
+    // Fill in any missing providers so we never lose a tab
+    let all = Tab.defaultOrder
+    let missing = all.filter { !parsed.contains($0) }
+    return parsed + missing
+}
+
 // MARK: - TabIcon
 
 enum TabIcon {
@@ -40,14 +74,15 @@ enum TabIcon {
 struct TabBarView: View {
     @Binding var selectedTab: Tab
     var onSettingsTap: (() -> Void)? = nil
+    @AppStorage("providerTabOrder") private var providerTabOrder: String = Tab.defaultOrderString
+
+    private var orderedTabs: [Tab] { decodedProviderOrder(providerTabOrder) }
 
     var body: some View {
         HStack(spacing: 4) {
-            tabButton(.claude,   icon: .asset("claude"),    label: "Claude")
-            tabButton(.copilot,  icon: .asset("copilot"),   label: "Copilot")
-            tabButton(.glm,      icon: .asset("glm"),       label: "GLM")
-            tabButton(.kimi,     icon: .asset("kimi"),      label: "Kimi")
-            tabButton(.codex,    icon: .asset("codex"),     label: "Codex")
+            ForEach(orderedTabs, id: \.self) { tab in
+                tabButton(tab, icon: tab.icon, label: tab.displayName)
+            }
             Spacer()
             // Gear opens the settings window directly instead of a settings tab
             Button {
@@ -173,6 +208,7 @@ struct PopoverView: View {
     @AppStorage("timezoneOffset") private var timezoneOffset: Int = TimeZone.current.secondsFromGMT() / 3600
     @AppStorage("navigationStyle") private var navigationStyle: String = "tabbar"
     @AppStorage("hasSeenRefreshHint") private var hasSeenRefreshHint = false
+    @AppStorage("providerTabOrder") private var providerTabOrder: String = Tab.defaultOrderString
     @State private var selectedTab: Tab = .claude
     @State private var slideDirection: Edge = .trailing
     @State private var eventMonitor: Any?
@@ -184,7 +220,11 @@ struct PopoverView: View {
     }
 
     private func switchTab(to newTab: Tab) {
-        slideDirection = newTab.index > selectedTab.index ? .trailing : .leading
+        // Use visual order from stored provider order for slide direction
+        let order = decodedProviderOrder(providerTabOrder)
+        let currentPos = order.firstIndex(of: selectedTab) ?? selectedTab.index
+        let newPos = order.firstIndex(of: newTab) ?? newTab.index
+        slideDirection = newPos > currentPos ? .trailing : .leading
         withAnimation(.easeInOut(duration: 0.2)) { selectedTab = newTab }
     }
 
@@ -209,13 +249,17 @@ struct PopoverView: View {
                 Spacer()
 
                 if !useTabBar {
-                    // Dropdown navigation
+                    // Dropdown navigation — respects stored provider order
                     Menu {
-                        Button { switchTab(to: .claude) }   label: { Label { Text("Claude") } icon: { Image("claude-small").renderingMode(.template) } }
-                        Button { switchTab(to: .copilot) }  label: { Label { Text("Copilot") } icon: { Image("copilot-small").renderingMode(.template) } }
-                        Button { switchTab(to: .glm) }      label: { Label { Text("GLM") } icon: { Image("glm-small").renderingMode(.template) } }
-                        Button { switchTab(to: .kimi) }     label: { Label { Text("Kimi") } icon: { Image("kimi-small").renderingMode(.template) } }
-                        Button { switchTab(to: .codex) }    label: { Label { Text("Codex") } icon: { Image("codex-small").renderingMode(.template) } }
+                        ForEach(decodedProviderOrder(providerTabOrder), id: \.self) { tab in
+                            Button { switchTab(to: tab) } label: {
+                                Label {
+                                    Text(tab.displayName)
+                                } icon: {
+                                    Image(tab.smallImageName).renderingMode(.template)
+                                }
+                            }
+                        }
                     } label: {
                         HStack(spacing: 4) {
                             Text(selectedTab.displayName)
@@ -376,16 +420,16 @@ struct PopoverView: View {
         .frame(width: 360)
         .onAppear {
             eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                // Arrow keys — navigate between provider tabs (no modifier needed)
+                // Arrow keys — navigate between provider tabs in stored order (no modifier needed)
                 if event.keyCode == 123 { // left arrow
-                    let tabs: [Tab] = [.claude, .copilot, .glm, .kimi, .codex]
+                    let tabs = decodedProviderOrder(providerTabOrder)
                     if let idx = tabs.firstIndex(of: selectedTab), idx > 0 {
                         switchTab(to: tabs[idx - 1])
                     }
                     return nil
                 }
                 if event.keyCode == 124 { // right arrow
-                    let tabs: [Tab] = [.claude, .copilot, .glm, .kimi, .codex]
+                    let tabs = decodedProviderOrder(providerTabOrder)
                     if let idx = tabs.firstIndex(of: selectedTab), idx < tabs.count - 1 {
                         switchTab(to: tabs[idx + 1])
                     }
