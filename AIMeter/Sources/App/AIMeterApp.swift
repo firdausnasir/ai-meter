@@ -49,6 +49,10 @@ enum MenuBarProvider: String, CaseIterable {
 
 @main
 struct AIMeterApp: App {
+    init() {
+        GlobalHotKeyManager.shared.start()
+    }
+
     @StateObject private var service = UsageService()
     @StateObject private var copilotService = CopilotService()
     @StateObject private var copilotHistoryService = CopilotHistoryService()

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.29.0] - 2026-03-22
+
+### Added
+
+- Global Keyboard Shortcut — ⌃⌥A (Control+Option+A) toggles the menu bar popover from anywhere
+  - Uses native `NSEvent` global + local monitors (no external dependencies)
+  - Finds and clicks the status bar button via window hierarchy traversal
+  - Listed in Settings → Shortcuts reference
+
 ## [1.28.0] - 2026-03-22
 
 ### Added

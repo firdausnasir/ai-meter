@@ -671,6 +671,7 @@ struct ShortcutsSettingsSection: View {
     var body: some View {
         settingsSectionCard {
             VStack(alignment: .leading, spacing: 4) {
+                shortcutRow("⌃⌥A", "Toggle menu bar popover")
                 shortcutRow("⌘R", "Refresh all providers")
                 shortcutRow("⌘1–5", "Jump to provider tab")
                 shortcutRow("⌘6", "Open Settings")
