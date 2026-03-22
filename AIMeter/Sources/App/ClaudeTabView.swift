@@ -1,5 +1,43 @@
 import SwiftUI
 
+private struct SessionPaceView: View {
+    let pace: UsagePace.Result
+
+    private var paceColor: Color {
+        switch pace.stage {
+        case .farBehind, .behind, .slightlyBehind, .onTrack:
+            return .green
+        case .slightlyAhead:
+            return .yellow
+        case .ahead, .farAhead:
+            return .red
+        }
+    }
+
+    private var label: String {
+        let delta = pace.deltaPercent
+        let sign = delta >= 0 ? "+" : ""
+        let deltaStr = String(format: "%@%.0f%%", sign, delta)
+        var text = "Pace: \(pace.stage.rawValue)"
+        // Only show delta when meaningfully off-track
+        if abs(delta) >= 5 {
+            text += " (\(deltaStr))"
+        }
+        if let eta = pace.etaDescription {
+            text += " · \(eta)"
+        }
+        return text
+    }
+
+    var body: some View {
+        Text(label)
+            .font(.system(size: 11))
+            .foregroundColor(paceColor)
+            .padding(.horizontal, 4)
+            .accessibilityLabel(label)
+    }
+}
+
 struct ClaudeTabView: View {
     @ObservedObject var service: UsageService
     @ObservedObject var statsService: ClaudeCodeStatsService
@@ -45,20 +83,30 @@ struct ClaudeTabView: View {
                 }
 
                 TimelineView(.periodic(from: .now, by: 1)) { context in
-                    UsageCardView(
-                        icon: "timer",
-                        title: "Session",
-                        subtitle: PeakHoursHelper.isDoubledUsage(now: context.date) ? "5h window · 2× limit" : "5h sliding window",
-                        percentage: data.fiveHour.utilization,
-                        resetText: ResetTimeFormatter.format(
-                            data.fiveHour.resetsAt,
-                            style: .countdown,
-                            timeZone: timeZone,
+                    VStack(alignment: .leading, spacing: 4) {
+                        UsageCardView(
+                            icon: "timer",
+                            title: "Session",
+                            subtitle: PeakHoursHelper.isDoubledUsage(now: context.date) ? "5h window · 2× limit" : "5h sliding window",
+                            percentage: data.fiveHour.utilization,
+                            resetText: ResetTimeFormatter.format(
+                                data.fiveHour.resetsAt,
+                                style: .countdown,
+                                timeZone: timeZone,
+                                now: context.date
+                            ),
+                            accentColor: ProviderTheme.claude.accentColor,
+                            isPrimary: true
+                        )
+                        if let pace = UsagePace.calculate(
+                            usagePercent: data.fiveHour.utilization,
+                            resetsAt: data.fiveHour.resetsAt,
+                            windowDurationHours: 5.0,
                             now: context.date
-                        ),
-                        accentColor: ProviderTheme.claude.accentColor,
-                        isPrimary: true
-                    )
+                        ) {
+                            SessionPaceView(pace: pace)
+                        }
+                    }
                 }
                 UsageCardView(
                     icon: "chart.bar.fill",

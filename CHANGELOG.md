@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.27.0] - 2026-03-22
+
+### Added
+
+- Usage Pace Analysis — color-coded pace indicator for Claude's 5-hour session window
+  - New `UsagePace` utility: calculates expected vs actual usage, stage classification (on-track/ahead/behind), and ETA
+  - `SessionPaceView` shows pace delta and depletion warning (e.g., "Ahead (+12%) · Runs out in 2h 15m")
+  - Green = on-track/behind, yellow = slightly ahead, red = ahead/far ahead
+  - Only for Claude session (other providers lack window duration data)
+
 ## [1.26.0] - 2026-03-22
 
 ### Added
