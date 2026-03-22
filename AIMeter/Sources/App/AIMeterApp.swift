@@ -306,29 +306,29 @@ struct MenuBarLabel: View {
         UsageColor.forUtilization(highestUtilization)
     }
 
+    private var renderedImage: NSImage? {
+        let content = MenuBarLabelContent(labelText: labelText, color: usageColor, opacity: 1.0)
+        return MenuBarImageRenderer.render(content)
+    }
+
     var body: some View {
         if isRefreshing {
-            TimelineView(.animation(minimumInterval: 0.1, paused: false)) { context in
-                menuBarImage(at: context.date)
+            TimelineView(.animation(minimumInterval: 0.15, paused: false)) { context in
+                let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: cycleDuration) / cycleDuration
+                if let img = renderedImage {
+                    Image(nsImage: img)
+                        .opacity(loadingPattern.opacity(at: phase))
+                } else {
+                    Image(systemName: "sparkles")
+                        .opacity(loadingPattern.opacity(at: phase))
+                }
             }
         } else {
-            menuBarImage(at: nil)
-        }
-    }
-
-    private func opacity(at date: Date?) -> Double {
-        guard let date else { return 1.0 }
-        let phase = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: cycleDuration) / cycleDuration
-        return loadingPattern.opacity(at: phase)
-    }
-
-    @ViewBuilder
-    private func menuBarImage(at date: Date?) -> some View {
-        let content = MenuBarLabelContent(labelText: labelText, color: usageColor, opacity: opacity(at: date))
-        if let img = MenuBarImageRenderer.render(content) {
-            Image(nsImage: img)
-        } else {
-            Image(systemName: "sparkles")
+            if let img = renderedImage {
+                Image(nsImage: img)
+            } else {
+                Image(systemName: "sparkles")
+            }
         }
     }
 }
