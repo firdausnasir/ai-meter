@@ -5,6 +5,7 @@ private let codexAccent = Color(red: 0.10, green: 0.75, blue: 0.55)
 struct CodexTabView: View {
     @ObservedObject var codexService: CodexService
     @ObservedObject var codexAuthManager: CodexAuthManager
+    @ObservedObject var historyService: CodexHistoryService
     let timeZone: TimeZone
     var providerStatus: ProviderStatusService.StatusInfo?
 
@@ -77,8 +78,23 @@ struct CodexTabView: View {
                     .background(Color.white.opacity(0.05))
                     .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
                 }
+
+                UsageHistoryChartView(
+                    title: "5hr Usage History",
+                    dataPoints: historyService.history.dataPoints.map {
+                        (date: $0.timestamp, value: Double($0.primaryPercent), label: shortDateLabel($0.timestamp))
+                    },
+                    valueFormatter: { "\(Int($0))%" },
+                    accentColor: codexAccent
+                )
             }
         }
+    }
+
+    private func shortDateLabel(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
     }
 
     private var signInView: some View {

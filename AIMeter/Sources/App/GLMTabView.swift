@@ -2,6 +2,7 @@ import SwiftUI
 
 struct GLMTabView: View {
     @ObservedObject var glmService: GLMService
+    @ObservedObject var historyService: GLMHistoryService
     var onKeySaved: (() -> Void)? = nil
 
     var body: some View {
@@ -51,8 +52,22 @@ struct GLMTabView: View {
                         .background(Color.white.opacity(0.05))
                         .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
                     }
+                    UsageHistoryChartView(
+                        title: "Token % History",
+                        dataPoints: historyService.history.dataPoints.map {
+                            (date: $0.timestamp, value: Double($0.tokensPercent), label: shortDateLabel($0.timestamp))
+                        },
+                        valueFormatter: { "\(Int($0))%" },
+                        accentColor: ProviderTheme.glm.accentColor
+                    )
                 }
         }
+    }
+
+    private func shortDateLabel(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
     }
 
 

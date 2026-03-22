@@ -2,6 +2,7 @@ import SwiftUI
 
 struct KimiTabView: View {
     @ObservedObject var kimiService: KimiService
+    @ObservedObject var historyService: KimiHistoryService
     var onKeySaved: (() -> Void)? = nil
 
     var body: some View {
@@ -48,8 +49,24 @@ struct KimiTabView: View {
                     if case .rateLimited = kimiService.error {
                         ErrorBannerView(message: "Rate limited — retrying", retryDate: kimiService.retryDate)
                     }
+
+                    UsageHistoryChartView(
+                        title: "Balance History",
+                        dataPoints: historyService.history.dataPoints.map {
+                            (date: $0.timestamp, value: $0.totalBalance, label: shortDateLabel($0.timestamp))
+                        },
+                        // Currency y-axis: show 2 decimal places
+                        valueFormatter: { String(format: "¥%.2f", $0) },
+                        accentColor: ProviderTheme.kimi.accentColor
+                    )
                 }
         }
+    }
+
+    private func shortDateLabel(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
     }
 
     @ViewBuilder

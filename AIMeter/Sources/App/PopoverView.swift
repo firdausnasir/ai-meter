@@ -195,6 +195,9 @@ struct PopoverView: View {
     @EnvironmentObject var service: UsageService
     @EnvironmentObject var copilotService: CopilotService
     @EnvironmentObject var copilotHistoryService: CopilotHistoryService
+    @EnvironmentObject var glmHistoryService: GLMHistoryService
+    @EnvironmentObject var kimiHistoryService: KimiHistoryService
+    @EnvironmentObject var codexHistoryService: CodexHistoryService
     @EnvironmentObject var glmService: GLMService
     @EnvironmentObject var kimiService: KimiService
     @EnvironmentObject var codexService: CodexService
@@ -323,15 +326,15 @@ struct PopoverView: View {
                 case .copilot:
                     CopilotTabView(copilotService: copilotService, historyService: copilotHistoryService, timeZone: configuredTimeZone, providerStatus: providerStatusService.statuses["Copilot"])
                 case .glm:
-                    GLMTabView(glmService: glmService, onKeySaved: {
+                    GLMTabView(glmService: glmService, historyService: glmHistoryService, onKeySaved: {
                         Task { await glmService.fetch() }
                     })
                 case .kimi:
-                    KimiTabView(kimiService: kimiService, onKeySaved: {
+                    KimiTabView(kimiService: kimiService, historyService: kimiHistoryService, onKeySaved: {
                         Task { await kimiService.fetch() }
                     })
                 case .codex:
-                    CodexTabView(codexService: codexService, codexAuthManager: codexAuthManager, timeZone: configuredTimeZone, providerStatus: providerStatusService.statuses["Codex"])
+                    CodexTabView(codexService: codexService, codexAuthManager: codexAuthManager, historyService: codexHistoryService, timeZone: configuredTimeZone, providerStatus: providerStatusService.statuses["Codex"])
                 case .settings:
                     EmptyView()
                 }
