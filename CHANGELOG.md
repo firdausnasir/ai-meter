@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.28.0] - 2026-03-22
+
+### Added
+
+- Menu Bar Display Modes — choose Percent, Pace, or Both in Settings → Display
+  - Percent: "45%" (default, existing behavior)
+  - Pace: "+5%" or "-3%" (delta from expected usage)
+  - Both: "45% · +5%" (combined view)
+  - Pace calculated for Claude's 5-hour session; other providers fall back to percent-only
+  - New `MenuBarDisplayMode` enum with picker in Display settings
+
 ## [1.27.0] - 2026-03-22
 
 ### Added

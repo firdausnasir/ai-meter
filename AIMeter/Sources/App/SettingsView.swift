@@ -358,6 +358,7 @@ struct DisplaySettingsSection: View {
     @AppStorage("refreshInterval") private var refreshInterval: Double = 60
     @AppStorage("timezoneOffset") private var timezoneOffset: Int = TimeZone.current.secondsFromGMT() / 3600
     @AppStorage("menuBarProvider") private var menuBarProvider: String = MenuBarProvider.claude.rawValue
+    @AppStorage("menuBarDisplayMode") private var menuBarDisplayMode: String = MenuBarDisplayMode.percent.rawValue
     @AppStorage("navigationStyle") private var navigationStyle: String = "tabbar"
     @AppStorage("colorThresholdElevated") private var colorElevated: Int = 50
     @AppStorage("colorThresholdHigh") private var colorHigh: Int = 80
@@ -395,6 +396,20 @@ struct DisplaySettingsSection: View {
                         }
                     } label: {
                         Text(MenuBarProvider(rawValue: menuBarProvider)?.displayName ?? menuBarProvider)
+                            .font(.system(size: 12))
+                            .foregroundColor(.white)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                }
+
+                settingsRow("Menu bar display") {
+                    Menu {
+                        ForEach(MenuBarDisplayMode.allCases, id: \.rawValue) { mode in
+                            Button(mode.displayName) { menuBarDisplayMode = mode.rawValue }
+                        }
+                    } label: {
+                        Text(MenuBarDisplayMode(rawValue: menuBarDisplayMode)?.displayName ?? menuBarDisplayMode)
                             .font(.system(size: 12))
                             .foregroundColor(.white)
                     }
@@ -692,6 +707,7 @@ struct GeneralSettingsSection: View {
     @AppStorage("refreshInterval") private var refreshInterval: Double = 60
     @AppStorage("timezoneOffset") private var timezoneOffset: Int = TimeZone.current.secondsFromGMT() / 3600
     @AppStorage("menuBarProvider") private var menuBarProvider: String = MenuBarProvider.claude.rawValue
+    @AppStorage("menuBarDisplayMode") private var menuBarDisplayMode: String = MenuBarDisplayMode.percent.rawValue
     @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = false
     @AppStorage("notifyWarning") private var notifyWarning: Int = 80
     @AppStorage("notifyCritical") private var notifyCritical: Int = 90
@@ -781,6 +797,7 @@ struct GeneralSettingsSection: View {
                     timezoneOffset = TimeZone.current.secondsFromGMT() / 3600
                     navigationStyle = "tabbar"
                     menuBarProvider = MenuBarProvider.claude.rawValue
+                    menuBarDisplayMode = MenuBarDisplayMode.percent.rawValue
                     notificationsEnabled = false
                     notifyWarning = 80
                     notifyCritical = 90

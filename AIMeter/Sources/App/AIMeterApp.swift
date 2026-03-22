@@ -15,6 +15,20 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     }
 }
 
+enum MenuBarDisplayMode: String, CaseIterable {
+    case percent = "percent"
+    case pace = "pace"
+    case both = "both"
+
+    var displayName: String {
+        switch self {
+        case .percent: "Percent"
+        case .pace: "Pace"
+        case .both: "Both"
+        }
+    }
+}
+
 enum MenuBarProvider: String, CaseIterable {
     case claude = "claude"
     case copilot = "copilot"
@@ -48,6 +62,7 @@ struct AIMeterApp: App {
     @StateObject private var statsService = ClaudeCodeStatsService()
     @AppStorage("refreshInterval") private var refreshInterval: Double = 60
     @AppStorage("menuBarProvider") private var menuBarProvider: String = MenuBarProvider.claude.rawValue
+    @AppStorage("menuBarDisplayMode") private var menuBarDisplayMode: String = MenuBarDisplayMode.percent.rawValue
     @AppStorage("perProviderRefresh") private var perProviderRefresh: Bool = false
     @AppStorage("refreshClaude") private var refreshClaude: Double = 60
     @AppStorage("refreshCopilot") private var refreshCopilot: Double = 60
@@ -160,6 +175,7 @@ struct AIMeterApp: App {
         } label: {
             MenuBarLabel(
                 provider: MenuBarProvider(rawValue: menuBarProvider) ?? .claude,
+                displayMode: MenuBarDisplayMode(rawValue: menuBarDisplayMode) ?? .percent,
                 usageData: service.usageData,
                 copilotData: copilotService.copilotData,
                 glmData: glmService.glmData,
@@ -174,6 +190,7 @@ struct AIMeterApp: App {
 
 struct MenuBarLabel: View {
     let provider: MenuBarProvider
+    let displayMode: MenuBarDisplayMode
     let usageData: UsageData
     let copilotData: CopilotUsageData
     let glmData: GLMUsageData
@@ -181,26 +198,46 @@ struct MenuBarLabel: View {
     let codexData: CodexUsageData
     let isRefreshing: Bool
 
+    // Format pace delta as "+5%", "-3%", or "0%"
+    private func paceString(from delta: Double) -> String {
+        let rounded = Int(delta.rounded())
+        if rounded > 0 { return "+\(rounded)%" }
+        return "\(rounded)%"
+    }
+
+    // Returns pace delta string for Claude only; nil if unavailable
+    private var claudePaceText: String? {
+        guard let result = UsagePace.calculate(
+            usagePercent: usageData.fiveHour.utilization,
+            resetsAt: usageData.fiveHour.resetsAt,
+            windowDurationHours: 5.0
+        ) else { return nil }
+        return paceString(from: result.deltaPercent)
+    }
+
     private var labelText: String {
         switch provider {
         case .claude:
-            let pct = "5h \(usageData.fiveHour.utilization)%"
-            if let reset = usageData.fiveHour.resetsAt {
-                let fmt = DateFormatter()
-                fmt.dateFormat = "h:mma"
-                fmt.amSymbol = "am"
-                fmt.pmSymbol = "pm"
-                return "\(pct) · \(fmt.string(from: reset))"
+            let pct = "\(usageData.fiveHour.utilization)%"
+            switch displayMode {
+            case .percent:
+                return pct
+            case .pace:
+                return claudePaceText ?? pct
+            case .both:
+                if let pace = claudePaceText {
+                    return "\(pct) · \(pace)"
+                }
+                return pct
             }
-            return pct
         case .copilot:
-            return "Premium \(copilotData.premiumInteractions.utilization)%"
+            return "\(copilotData.premiumInteractions.utilization)%"
         case .glm:
-            return "GLM \(glmData.tokensPercent)%"
+            return "\(glmData.tokensPercent)%"
         case .kimi:
-            return String(format: "Kimi ¥%.2f", kimiData.totalBalance)
+            return String(format: "¥%.2f", kimiData.totalBalance)
         case .codex:
-            return "Codex \(codexData.primaryPercent)%"
+            return "\(codexData.primaryPercent)%"
         }
     }
 
