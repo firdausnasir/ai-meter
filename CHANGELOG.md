@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.34.1] - 2026-03-22
+
+### Fixed
+
+- Menu bar hang when using Knight Rider or other loading animations — opacity now applied on the SwiftUI Image view instead of re-rendering NSImage each frame
+- Classic display mode restored as default (percentage + reset time)
+
 ## [1.34.0] - 2026-03-22
 
 ### Added
