@@ -3,6 +3,13 @@ import Foundation
 @MainActor
 final class KimiService: HTTPPollingService {
     @Published var kimiData: KimiUsageData = .empty
+    // Caller must retain the KimiHistoryService instance; this service holds only a weak reference
+    private weak var kimiHistoryService: KimiHistoryService?
+
+    func start(interval: TimeInterval = 60, historyService: KimiHistoryService? = nil) {
+        self.kimiHistoryService = historyService
+        super.start(interval: interval)
+    }
 
     /// Resolve API key: Keychain first, env var fallback
     static func resolveAPIKey() -> String? {
@@ -58,6 +65,7 @@ final class KimiService: HTTPPollingService {
             fetchedAt: Date()
         )
         SharedDefaults.saveKimi(self.kimiData)
+        kimiHistoryService?.recordDataPoint(totalBalance: self.kimiData.totalBalance)
         NotificationManager.shared.check(metrics: NotificationManager.metrics(from: self.kimiData))
     }
 }

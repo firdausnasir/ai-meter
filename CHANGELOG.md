@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.32.0] - 2026-03-22
+
+### Added
+
+- Historical Usage Tracking for All Providers — 56-day retention with automatic pruning
+  - Extended GLM, Codex, and Kimi with history services (Claude and Copilot already had them)
+  - GLM tracks token %, Codex tracks primary/secondary %, Kimi tracks balance
+  - Bumped retention from 31 to 56 days across all providers
+  - Persisted to `~/.config/aimeter/` as JSON with atomic writes
+
 ## [1.31.0] - 2026-03-22
 
 ### Added

@@ -16,6 +16,9 @@ enum AppConstants {
 
         static let quotaHistoryFile = configDir.appendingPathComponent("history.json")
         static let copilotHistoryFile = configDir.appendingPathComponent("copilot-history.json")
+        static let glmHistoryFile = configDir.appendingPathComponent("glm-history.json")
+        static let codexHistoryFile = configDir.appendingPathComponent("codex-history.json")
+        static let kimiHistoryFile = configDir.appendingPathComponent("kimi-history.json")
         static let tokenCacheFile = configDir.appendingPathComponent("daily-token-cache.json")
     }
 

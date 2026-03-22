@@ -9,6 +9,8 @@ final class CodexService: PollingServiceBase {
 
     private var refreshInterval: TimeInterval = 60
     private weak var authManager: CodexAuthManager?
+    // Caller must retain the CodexHistoryService instance; this service holds only a weak reference
+    private weak var codexHistoryService: CodexHistoryService?
     private var isFetching = false
     private var consecutiveRateLimits = 0
 
@@ -19,9 +21,10 @@ final class CodexService: PollingServiceBase {
         case rateLimited(retryAfter: TimeInterval)
     }
 
-    func start(interval: TimeInterval = 60, authManager: CodexAuthManager? = nil) {
+    func start(interval: TimeInterval = 60, authManager: CodexAuthManager? = nil, historyService: CodexHistoryService? = nil) {
         self.refreshInterval = interval
         self.authManager = authManager
+        self.codexHistoryService = historyService
         if let cached = SharedDefaults.loadCodex() {
             self.codexData = cached
             self.isStale = Date().timeIntervalSince(cached.fetchedAt) > refreshInterval * 2
@@ -50,6 +53,7 @@ final class CodexService: PollingServiceBase {
             self.error = nil
             self.retryDate = nil
             SharedDefaults.saveCodex(data)
+            codexHistoryService?.recordDataPoint(primaryPercent: data.primaryPercent, secondaryPercent: data.secondaryPercent)
             NotificationManager.shared.checkSessionDepletion(provider: "Codex", usagePercent: Double(data.primaryPercent))
         } catch let apiError as CodexAPIError {
             self.isStale = true

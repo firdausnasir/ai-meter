@@ -3,6 +3,13 @@ import Foundation
 @MainActor
 final class GLMService: HTTPPollingService {
     @Published var glmData: GLMUsageData = .empty
+    // Caller must retain the GLMHistoryService instance; this service holds only a weak reference
+    private weak var glmHistoryService: GLMHistoryService?
+
+    func start(interval: TimeInterval = 60, historyService: GLMHistoryService? = nil) {
+        self.glmHistoryService = historyService
+        super.start(interval: interval)
+    }
 
     /// Resolve API key: Keychain first, env var fallback
     static func resolveAPIKey() -> String? {
@@ -57,6 +64,7 @@ final class GLMService: HTTPPollingService {
             fetchedAt: Date()
         )
         SharedDefaults.saveGLM(self.glmData)
+        glmHistoryService?.recordDataPoint(tokensPercent: self.glmData.tokensPercent)
         NotificationManager.shared.check(metrics: NotificationManager.metrics(from: self.glmData))
         NotificationManager.shared.checkSessionDepletion(provider: "GLM", usagePercent: Double(self.glmData.tokensPercent))
     }
