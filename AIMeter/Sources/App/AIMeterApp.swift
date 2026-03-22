@@ -195,14 +195,17 @@ struct AIMeterApp: App {
                     }
             }
         } label: {
+            let selected = MenuBarProvider(rawValue: menuBarProvider) ?? .claude
+            let mode = MenuBarDisplayMode(rawValue: menuBarDisplayMode) ?? .classic
+            let labelInfo = MenuBarLabel.extractLabelInfo(
+                provider: selected, displayMode: mode,
+                usageData: service.usageData, copilotData: copilotService.copilotData,
+                glmData: glmService.glmData, kimiData: kimiService.kimiData,
+                codexData: codexService.codexData
+            )
             MenuBarLabel(
-                provider: MenuBarProvider(rawValue: menuBarProvider) ?? .claude,
-                displayMode: MenuBarDisplayMode(rawValue: menuBarDisplayMode) ?? .percent,
-                usageData: service.usageData,
-                copilotData: copilotService.copilotData,
-                glmData: glmService.glmData,
-                kimiData: kimiService.kimiData,
-                codexData: codexService.codexData,
+                labelText: labelInfo.text,
+                utilization: labelInfo.utilization,
                 isRefreshing: isRefreshing
             )
         }
@@ -211,99 +214,19 @@ struct AIMeterApp: App {
 }
 
 struct MenuBarLabel: View {
-    let provider: MenuBarProvider
-    let displayMode: MenuBarDisplayMode
-    let usageData: UsageData
-    let copilotData: CopilotUsageData
-    let glmData: GLMUsageData
-    let kimiData: KimiUsageData
-    let codexData: CodexUsageData
+    let labelText: String
+    let utilization: Int
     let isRefreshing: Bool
 
     @AppStorage("loadingPattern") private var loadingPatternRaw: String = LoadingPattern.fade.rawValue
-    // Cycle duration in seconds — fast enough to feel smooth, slow enough to be subtle
     private let cycleDuration: Double = 2.0
 
     private var loadingPattern: LoadingPattern {
         LoadingPattern(rawValue: loadingPatternRaw) ?? .fade
     }
 
-    // Format pace delta as "+5%", "-3%", or "0%"
-    private func paceString(from delta: Double) -> String {
-        let rounded = Int(delta.rounded())
-        if rounded > 0 { return "+\(rounded)%" }
-        return "\(rounded)%"
-    }
-
-    // Returns pace delta string for Claude only; nil if unavailable
-    private var claudePaceText: String? {
-        guard let result = UsagePace.calculate(
-            usagePercent: usageData.fiveHour.utilization,
-            resetsAt: usageData.fiveHour.resetsAt,
-            windowDurationHours: 5.0
-        ) else { return nil }
-        return paceString(from: result.deltaPercent)
-    }
-
-    private func resetTimeString(_ date: Date?) -> String? {
-        guard let date else { return nil }
-        let fmt = DateFormatter()
-        fmt.dateFormat = "h:mma"
-        fmt.amSymbol = "am"
-        fmt.pmSymbol = "pm"
-        return fmt.string(from: date)
-    }
-
-    private var labelText: String {
-        switch provider {
-        case .claude:
-            let pct = "\(usageData.fiveHour.utilization)%"
-            switch displayMode {
-            case .classic:
-                let base = "5h \(pct)"
-                if let reset = resetTimeString(usageData.fiveHour.resetsAt) {
-                    return "\(base) · \(reset)"
-                }
-                return base
-            case .percent:
-                return pct
-            case .pace:
-                return claudePaceText ?? pct
-            case .both:
-                if let pace = claudePaceText {
-                    return "\(pct) · \(pace)"
-                }
-                return pct
-            }
-        case .copilot:
-            return "\(copilotData.premiumInteractions.utilization)%"
-        case .glm:
-            return "\(glmData.tokensPercent)%"
-        case .kimi:
-            return String(format: "¥%.2f", kimiData.totalBalance)
-        case .codex:
-            return "\(codexData.primaryPercent)%"
-        }
-    }
-
-    private var highestUtilization: Int {
-        switch provider {
-        case .claude:
-            usageData.fiveHour.utilization
-        case .copilot:
-            copilotData.premiumInteractions.utilization
-        case .glm:
-            glmData.tokensPercent
-        case .kimi:
-            // Balance-based: green when positive, red when zero
-            kimiData.totalBalance > 0 ? 10 : 100
-        case .codex:
-            codexData.highestUtilization
-        }
-    }
-
     private var usageColor: Color {
-        UsageColor.forUtilization(highestUtilization)
+        UsageColor.forUtilization(utilization)
     }
 
     private var renderedImage: NSImage? {
@@ -330,6 +253,78 @@ struct MenuBarLabel: View {
                 Image(systemName: "sparkles")
             }
         }
+    }
+
+    struct LabelInfo: Equatable {
+        let text: String
+        let utilization: Int
+    }
+
+    static func extractLabelInfo(
+        provider: MenuBarProvider, displayMode: MenuBarDisplayMode,
+        usageData: UsageData, copilotData: CopilotUsageData,
+        glmData: GLMUsageData, kimiData: KimiUsageData, codexData: CodexUsageData
+    ) -> LabelInfo {
+        let text: String
+        let utilization: Int
+
+        switch provider {
+        case .claude:
+            let pct = "\(usageData.fiveHour.utilization)%"
+            utilization = usageData.fiveHour.utilization
+            switch displayMode {
+            case .classic:
+                let base = "5h \(pct)"
+                if let resetsAt = usageData.fiveHour.resetsAt {
+                    let fmt = DateFormatter()
+                    fmt.dateFormat = "h:mma"
+                    fmt.amSymbol = "am"
+                    fmt.pmSymbol = "pm"
+                    text = "\(base) · \(fmt.string(from: resetsAt))"
+                } else {
+                    text = base
+                }
+            case .percent:
+                text = pct
+            case .pace:
+                if let result = UsagePace.calculate(
+                    usagePercent: usageData.fiveHour.utilization,
+                    resetsAt: usageData.fiveHour.resetsAt,
+                    windowDurationHours: 5.0
+                ) {
+                    let rounded = Int(result.deltaPercent.rounded())
+                    text = rounded > 0 ? "+\(rounded)%" : "\(rounded)%"
+                } else {
+                    text = pct
+                }
+            case .both:
+                if let result = UsagePace.calculate(
+                    usagePercent: usageData.fiveHour.utilization,
+                    resetsAt: usageData.fiveHour.resetsAt,
+                    windowDurationHours: 5.0
+                ) {
+                    let rounded = Int(result.deltaPercent.rounded())
+                    let pace = rounded > 0 ? "+\(rounded)%" : "\(rounded)%"
+                    text = "\(pct) · \(pace)"
+                } else {
+                    text = pct
+                }
+            }
+        case .copilot:
+            text = "\(copilotData.premiumInteractions.utilization)%"
+            utilization = copilotData.premiumInteractions.utilization
+        case .glm:
+            text = "\(glmData.tokensPercent)%"
+            utilization = glmData.tokensPercent
+        case .kimi:
+            text = String(format: "¥%.2f", kimiData.totalBalance)
+            utilization = kimiData.totalBalance > 0 ? 10 : 100
+        case .codex:
+            text = "\(codexData.primaryPercent)%"
+            utilization = codexData.highestUtilization
+        }
+
+        return LabelInfo(text: text, utilization: utilization)
     }
 }
 
