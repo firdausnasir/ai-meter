@@ -162,6 +162,11 @@ struct AIMeterApp: App {
                             }
                         }
                     }
+                    .task {
+                        for await _ in NotificationCenter.default.notifications(named: .forceRefreshAll) {
+                            refreshAll()
+                        }
+                    }
                     .onChange(of: refreshInterval) { _, _ in restartAll() }
                     .onChange(of: perProviderRefresh) { _, _ in restartAll() }
                     .onChange(of: refreshClaude) { _, _ in restartAll() }

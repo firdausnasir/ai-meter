@@ -131,6 +131,11 @@ final class NotificationManager {
         fireViaOsascript(title: title, body: metric.detail)
     }
 
+    // Exposed for DEBUG tooling only — do not call from production code paths
+    func fireViaOsascriptPublic(title: String, body: String?) {
+        fireViaOsascript(title: title, body: body)
+    }
+
     private func fireViaOsascript(title: String, body: String?, sound: Bool = true) {
         DispatchQueue.global(qos: .utility).async {
             // Escape double quotes for AppleScript
@@ -266,4 +271,5 @@ private extension Int {
 
 extension Notification.Name {
     static let openLatestRecap = Notification.Name("com.khairul.aimeter.openLatestRecap")
+    static let forceRefreshAll = Notification.Name("com.khairul.aimeter.forceRefreshAll")
 }

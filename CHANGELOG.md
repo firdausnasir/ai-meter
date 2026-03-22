@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.31.0] - 2026-03-22
+
+### Added
+
+- Developer Debug Pane — expanded debug tools in Settings (DEBUG builds only)
+  - Test notifications: depleted, restored, warning, and monthly recap
+  - Service status: last fetch time per provider
+  - Force refresh all providers
+  - Clear cached data with confirmation dialog
+  - App info: version, build, bundle ID, macOS version
+
 ## [1.30.0] - 2026-03-22
 
 ### Added

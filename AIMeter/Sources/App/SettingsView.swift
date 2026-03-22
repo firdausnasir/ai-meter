@@ -860,57 +860,209 @@ struct DeveloperSettingsSection: View {
     @ObservedObject var historyService: QuotaHistoryService
     @ObservedObject var copilotHistoryService: CopilotHistoryService
 
+    @State private var clearCacheConfirm = false
+    @State private var resetSettingsConfirm = false
+
     var body: some View {
-        settingsSectionCard {
-            VStack(alignment: .leading, spacing: 8) {
-                Button("Test Monthly Recap") {
-                    let now = Date()
-                    let calendar = Calendar.current
-                    let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
-                    let sampleRecap = MonthlyRecapData(
-                        month: monthStart,
-                        generatedAt: now,
-                        claude: ClaudeRecapStats(
-                            avgSessionUtilization: 0.45,
-                            avgWeeklyUtilization: 0.62,
-                            peakSessionUtilization: 0.88,
-                            peakWeeklyUtilization: 0.75,
-                            peakDate: now.addingTimeInterval(-5 * 86400),
-                            dataPointCount: 720,
-                            planName: "Pro"
-                        ),
-                        copilot: CopilotRecapStats(
-                            avgChatUtilization: 0.30,
-                            avgCompletionsUtilization: 0.55,
-                            avgPremiumUtilization: 0.40,
-                            peakChatUtilization: 0.72,
-                            peakCompletionsUtilization: 0.85,
-                            peakPremiumUtilization: 0.60,
-                            peakDate: now.addingTimeInterval(-3 * 86400),
-                            dataPointCount: 680,
-                            plan: "Pro"
+        VStack(alignment: .leading, spacing: 12) {
+
+            // MARK: Notifications
+
+            settingsSectionCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Notifications")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+
+                    Button("Test Usage Alert") {
+                        NotificationManager.shared.fireTestNotification()
+                    }
+                    .font(.system(size: 12))
+                    .buttonStyle(.plain)
+                    .foregroundColor(.accentColor)
+
+                    Button("Test Session Depleted") {
+                        NotificationManager.shared.fireViaOsascriptPublic(
+                            title: "Claude Session Depleted",
+                            body: "Usage at 100% — will notify when available again."
                         )
-                    )
-                    RecapWindowController.show(recap: sampleRecap)
-                }
-                .font(.system(size: 12))
-                .buttonStyle(.plain)
-                .foregroundColor(.accentColor)
+                    }
+                    .font(.system(size: 12))
+                    .buttonStyle(.plain)
+                    .foregroundColor(.accentColor)
 
-                Button("Test Usage Alert") {
-                    NotificationManager.shared.fireTestNotification()
-                }
-                .font(.system(size: 12))
-                .buttonStyle(.plain)
-                .foregroundColor(.accentColor)
+                    Button("Test Session Restored") {
+                        NotificationManager.shared.fireViaOsascriptPublic(
+                            title: "Claude Session Restored",
+                            body: "Session quota is available again."
+                        )
+                    }
+                    .font(.system(size: 12))
+                    .buttonStyle(.plain)
+                    .foregroundColor(.accentColor)
 
-                Button("Test Recap Notification") {
-                    NotificationManager.shared.fireRecapNotification(for: Date())
+                    Button("Test Recap Notification") {
+                        NotificationManager.shared.fireRecapNotification(for: Date())
+                    }
+                    .font(.system(size: 12))
+                    .buttonStyle(.plain)
+                    .foregroundColor(.accentColor)
                 }
-                .font(.system(size: 12))
-                .buttonStyle(.plain)
-                .foregroundColor(.accentColor)
             }
+
+            // MARK: Monthly Recap
+
+            settingsSectionCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Recap")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+
+                    Button("Test Monthly Recap") {
+                        let now = Date()
+                        let calendar = Calendar.current
+                        let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
+                        let sampleRecap = MonthlyRecapData(
+                            month: monthStart,
+                            generatedAt: now,
+                            claude: ClaudeRecapStats(
+                                avgSessionUtilization: 0.45,
+                                avgWeeklyUtilization: 0.62,
+                                peakSessionUtilization: 0.88,
+                                peakWeeklyUtilization: 0.75,
+                                peakDate: now.addingTimeInterval(-5 * 86400),
+                                dataPointCount: 720,
+                                planName: "Pro"
+                            ),
+                            copilot: CopilotRecapStats(
+                                avgChatUtilization: 0.30,
+                                avgCompletionsUtilization: 0.55,
+                                avgPremiumUtilization: 0.40,
+                                peakChatUtilization: 0.72,
+                                peakCompletionsUtilization: 0.85,
+                                peakPremiumUtilization: 0.60,
+                                peakDate: now.addingTimeInterval(-3 * 86400),
+                                dataPointCount: 680,
+                                plan: "Pro"
+                            )
+                        )
+                        RecapWindowController.show(recap: sampleRecap)
+                    }
+                    .font(.system(size: 12))
+                    .buttonStyle(.plain)
+                    .foregroundColor(.accentColor)
+                }
+            }
+
+            // MARK: Service Status
+
+            settingsSectionCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Last Fetch")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+
+                    serviceStatusRow("Claude", date: SharedDefaults.load()?.fetchedAt)
+                    serviceStatusRow("Copilot", date: SharedDefaults.loadCopilot()?.fetchedAt)
+                    serviceStatusRow("GLM", date: SharedDefaults.loadGLM()?.fetchedAt)
+                    serviceStatusRow("Kimi", date: SharedDefaults.loadKimi()?.fetchedAt)
+                    serviceStatusRow("Codex", date: SharedDefaults.loadCodex()?.fetchedAt)
+                }
+            }
+
+            // MARK: Actions
+
+            settingsSectionCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Actions")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+
+                    Button {
+                        NotificationCenter.default.post(name: .forceRefreshAll, object: nil)
+                    } label: {
+                        HStack {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 11))
+                            Text("Force Refresh All")
+                                .font(.system(size: 12))
+                        }
+                        .foregroundColor(.accentColor)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        clearCacheConfirm = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "trash")
+                                .font(.system(size: 11))
+                            Text("Clear Cached Data")
+                                .font(.system(size: 12))
+                        }
+                        .foregroundColor(.orange)
+                    }
+                    .buttonStyle(.plain)
+                    .confirmationDialog("Clear cached data?", isPresented: $clearCacheConfirm) {
+                        Button("Clear", role: .destructive) {
+                            let suite = UserDefaults(suiteName: SharedDefaults.suiteName)
+                            suite?.removeObject(forKey: "usageData")
+                            suite?.removeObject(forKey: "copilotData")
+                            suite?.removeObject(forKey: "glmData")
+                            suite?.removeObject(forKey: "kimiData")
+                            suite?.removeObject(forKey: "codexData")
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("Cached provider data will be removed. It will reload on the next refresh.")
+                    }
+                }
+            }
+
+            // MARK: App Info
+
+            settingsSectionCard {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("App Info")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+
+                    infoRow("Version", value: "\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"))")
+                    infoRow("Bundle ID", value: Bundle.main.bundleIdentifier ?? "—")
+                    infoRow("macOS", value: ProcessInfo.processInfo.operatingSystemVersionString)
+                }
+            }
+        }
+    }
+
+    private func serviceStatusRow(_ name: String, date: Date?) -> some View {
+        HStack {
+            Text(name)
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+            Spacer()
+            if let date = date, date != .distantPast {
+                Text(RelativeDateTimeFormatter().localizedString(for: date, relativeTo: Date()))
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.secondary)
+            } else {
+                Text("—")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary.opacity(0.5))
+            }
+        }
+    }
+
+    private func infoRow(_ label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+            Spacer()
+            Text(value)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.trailing)
         }
     }
 }
