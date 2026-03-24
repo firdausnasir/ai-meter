@@ -33,6 +33,7 @@ struct MediumWidgetView: View {
                 Circle()
                     .fill(UsageColor.forUtilization(overallHighestUtilization))
                     .frame(width: 6, height: 6)
+                    .accessibilityHidden(true)
                 Text("AI Meter")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(.secondary)
@@ -77,6 +78,7 @@ struct MediumWidgetView: View {
                             .font(.system(size: 9))
                             .foregroundColor(.secondary)
                     }
+                    .accessibilityLabel("Credits at \(credits.utilization) percent")
                 }
 
                 if let copilot = copilotData, !copilot.premiumInteractions.unlimited {
@@ -93,8 +95,10 @@ struct MediumWidgetView: View {
                             Text(resetText)
                                 .font(.system(size: 9))
                                 .foregroundColor(.secondary)
+                                .lineLimit(1)
                         }
                     }
+                    .accessibilityLabel("Copilot at \(copilot.premiumInteractions.utilization) percent")
                 }
             }
         }
@@ -119,6 +123,7 @@ struct MediumWidgetView: View {
                 Text(resetText)
                     .font(.system(size: 9))
                     .foregroundColor(.secondary)
+                    .lineLimit(1)
             }
         }
         .accessibilityLabel("\(label) at \(limit.utilization) percent")

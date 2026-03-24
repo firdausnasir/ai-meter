@@ -17,6 +17,14 @@ struct KimiTabView: View {
             }
         } else {
             VStack(spacing: 8) {
+                    if case .fetchFailed = kimiService.error {
+                        ErrorBannerView(message: "Failed to fetch balance") {
+                            Task { await kimiService.fetch() }
+                        }
+                    }
+                    if case .rateLimited = kimiService.error {
+                        ErrorBannerView(message: "Rate limited — retrying", retryDate: kimiService.retryDate)
+                    }
                     balanceRow(
                         icon: "yensign.circle.fill",
                         title: "Cash Balance",
@@ -37,18 +45,9 @@ struct KimiTabView: View {
                             .foregroundColor(kimiService.kimiData.totalBalance > 0 ? .green : .red)
                     }
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 10)
                     .background(Color.white.opacity(0.05))
                     .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-
-                    if case .fetchFailed = kimiService.error {
-                        ErrorBannerView(message: "Failed to fetch balance") {
-                            Task { await kimiService.fetch() }
-                        }
-                    }
-                    if case .rateLimited = kimiService.error {
-                        ErrorBannerView(message: "Rate limited — retrying", retryDate: kimiService.retryDate)
-                    }
 
                     UsageHistoryChartView(
                         title: "Balance History",

@@ -39,7 +39,6 @@ private struct SessionPaceView: View {
                 Text(label)
                     .font(.system(size: 11))
                     .foregroundColor(paceColor)
-                    .padding(.horizontal, 4)
                     .accessibilityLabel(label)
                 Button {
                     showHelp.toggle()
@@ -99,7 +98,15 @@ struct ClaudeTabView: View {
                 }
                 .accessibilityElement(children: .combine)
 
-                if service.error != nil && service.error != .noCredentials {
+                if case .rateLimited = service.error {
+                    ErrorBannerView(message: "Rate limited — retrying", retryDate: service.retryDate)
+                } else if case .sessionExpired = service.error {
+                    ErrorBannerView(message: "Session expired — sign in again")
+                } else if case .cloudflareBlocked = service.error {
+                    ErrorBannerView(message: "Blocked by Cloudflare — try again later") {
+                        Task { await service.fetch() }
+                    }
+                } else if service.error == .fetchFailed {
                     ErrorBannerView(message: "Failed to fetch usage data") {
                         Task { await service.fetch() }
                     }

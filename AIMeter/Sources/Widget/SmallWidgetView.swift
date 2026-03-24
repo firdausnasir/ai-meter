@@ -45,6 +45,7 @@ struct SmallWidgetView: View {
                 Circle()
                     .fill(UsageColor.forUtilization(overallHighestUtilization))
                     .frame(width: 6, height: 6)
+                    .accessibilityHidden(true)
                 Text("AI Meter")
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundColor(.secondary)
@@ -64,6 +65,7 @@ struct SmallWidgetView: View {
                 Text("Reset \(resetText)")
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
+                    .lineLimit(1)
             }
         }
         .accessibilityLabel("\(label) usage at \(limit.utilization) percent")
@@ -72,7 +74,7 @@ struct SmallWidgetView: View {
 
     private var updatedText: String {
         let seconds = Int(Date().timeIntervalSince(data.fetchedAt))
-        if seconds < 60 { return "< 1m" }
-        return "\(seconds / 60)m"
+        if seconds < 60 { return "< 1 min ago" }
+        return "\(seconds / 60)m ago"
     }
 }

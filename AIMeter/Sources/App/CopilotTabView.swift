@@ -12,7 +12,9 @@ struct CopilotTabView: View {
         } else {
             let copilot = copilotService.copilotData
             VStack(alignment: .leading, spacing: 6) {
-                    if copilotService.error == .fetchFailed {
+                    if copilotService.error == .tokenExpired {
+                        ErrorBannerView(message: "GitHub token expired — run `gh auth login`")
+                    } else if copilotService.error == .fetchFailed {
                         ErrorBannerView(message: "Failed to fetch Copilot data") {
                             Task { await copilotService.fetch() }
                         }

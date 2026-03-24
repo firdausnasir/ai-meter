@@ -90,6 +90,8 @@ struct SettingsView: View {
             .foregroundColor(selectedSection == section ? .white : .secondary)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(section.rawValue) settings")
+        .accessibilityAddTraits(selectedSection == section ? .isSelected : [])
     }
 
     // MARK: - Content Router
@@ -550,6 +552,7 @@ struct DisplaySettingsSection: View {
                         .buttonStyle(.plain)
                         .foregroundColor(idx == 0 ? .secondary.opacity(0.3) : .secondary)
                         .disabled(idx == 0)
+                        .accessibilityLabel("Move \(tab.displayName) up")
                         // Move down
                         Button {
                             moveProvider(from: idx, offset: 1)
@@ -560,6 +563,7 @@ struct DisplaySettingsSection: View {
                         .buttonStyle(.plain)
                         .foregroundColor(idx == orderedTabs.count - 1 ? .secondary.opacity(0.3) : .secondary)
                         .disabled(idx == orderedTabs.count - 1)
+                        .accessibilityLabel("Move \(tab.displayName) down")
                     }
                     .padding(.vertical, 2)
                 }
@@ -674,6 +678,8 @@ struct NotificationsSettingsSection: View {
                     .frame(height: 8)
                     .animation(.easeInOut(duration: 0.2), value: notifyWarning)
                     .animation(.easeInOut(duration: 0.2), value: notifyCritical)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Notification thresholds: normal below \(notifyWarning)%, warning at \(notifyWarning)%, critical at \(notifyCritical)%")
                 }
             }
         }

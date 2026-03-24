@@ -74,7 +74,7 @@ struct CodexTabView: View {
                             .clipShape(RoundedRectangle(cornerRadius: AppRadius.badge))
                     }
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 10)
                     .background(Color.white.opacity(0.05))
                     .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
                 }
@@ -136,9 +136,17 @@ struct CodexTabView: View {
             }
 
             if let error = codexAuthManager.lastError {
-                Text(error)
-                    .font(.system(size: 10))
-                    .foregroundColor(.red)
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.red)
+                        .font(.system(size: 11))
+                    Text(error)
+                        .font(.system(size: 10))
+                        .foregroundColor(.red)
+                }
+                .padding(8)
+                .background(Color.red.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
             }
         }
         .frame(maxWidth: .infinity)

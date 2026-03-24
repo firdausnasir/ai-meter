@@ -48,7 +48,7 @@ struct GLMTabView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: AppRadius.badge))
                         }
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 10)
                         .background(Color.white.opacity(0.05))
                         .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
                     }
