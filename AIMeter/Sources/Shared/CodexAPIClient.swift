@@ -33,6 +33,9 @@ enum CodexAPIClient {
             if http.statusCode == 401 {
                 throw CodexAPIError.unauthorized
             }
+            guard (200...299).contains(http.statusCode) else {
+                throw CodexAPIError.fetchFailed
+            }
         }
 
         return try parseResponse(data)

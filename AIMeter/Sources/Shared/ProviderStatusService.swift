@@ -38,7 +38,9 @@ final class ProviderStatusService: ObservableObject {
             Task {
                 do {
                     guard let url = URL(string: endpoint.url) else { return }
-                    let (data, _) = try await URLSession.shared.data(from: url)
+                    let (data, response) = try await URLSession.shared.data(from: url)
+                    guard let http = response as? HTTPURLResponse,
+                          (200...299).contains(http.statusCode) else { return }
                     // Statuspage.io format: { "status": { "indicator": "none", "description": "..." } }
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                        let status = json["status"] as? [String: Any],

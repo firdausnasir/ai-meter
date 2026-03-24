@@ -39,7 +39,11 @@ class HTTPPollingService: PollingServiceBase {
             return
         }
 
-        guard let request = buildRequest(apiKey: apiKey) else { return }
+        guard let request = buildRequest(apiKey: apiKey) else {
+            self.error = .fetchFailed
+            self.isStale = true
+            return
+        }
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)

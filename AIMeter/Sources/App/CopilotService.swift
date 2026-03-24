@@ -16,6 +16,7 @@ final class CopilotService: PollingServiceBase {
 
     enum CopilotError: Equatable {
         case noToken
+        case tokenExpired
         case fetchFailed
         case rateLimited(retryAfter: TimeInterval)
     }
@@ -70,6 +71,9 @@ final class CopilotService: PollingServiceBase {
                 self.error = .rateLimited(retryAfter: delay)
                 self.retryDate = Date().addingTimeInterval(delay)
                 rescheduleTimer(interval: delay)
+            } else if case .unauthorized = apiError {
+                self.error = .tokenExpired
+                self.retryDate = nil
             } else {
                 self.error = .fetchFailed
                 self.retryDate = nil

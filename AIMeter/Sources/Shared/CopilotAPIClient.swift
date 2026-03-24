@@ -2,6 +2,7 @@ import Foundation
 
 enum CopilotAPIError: Error {
     case rateLimited(retryAfter: TimeInterval)
+    case unauthorized
     case fetchFailed
 }
 
@@ -30,10 +31,18 @@ enum CopilotAPIClient {
 
         let (data, response) = try await session.data(for: request)
 
-        if let http = response as? HTTPURLResponse, http.statusCode == 429 {
-            let retryAfter = (http.value(forHTTPHeaderField: "retry-after"))
-                .flatMap { TimeInterval($0) } ?? 60
-            throw CopilotAPIError.rateLimited(retryAfter: retryAfter)
+        if let http = response as? HTTPURLResponse {
+            if http.statusCode == 429 {
+                let retryAfter = (http.value(forHTTPHeaderField: "retry-after"))
+                    .flatMap { TimeInterval($0) } ?? 60
+                throw CopilotAPIError.rateLimited(retryAfter: retryAfter)
+            }
+            if http.statusCode == 401 {
+                throw CopilotAPIError.unauthorized
+            }
+            guard (200...299).contains(http.statusCode) else {
+                throw CopilotAPIError.fetchFailed
+            }
         }
 
         return try parseResponse(data)
