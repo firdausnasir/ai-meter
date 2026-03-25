@@ -187,10 +187,11 @@ final class KimiLoginCoordinator: NSObject, ObservableObject, WKNavigationDelega
     private func checkForAuthCookie() {
         webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { [weak self] cookies in
             guard let self else { return }
-            if let cookie = cookies.first(where: { 
-                $0.name == "kimi-auth" && $0.domain.contains("kimi.com") 
+            if let cookie = cookies.first(where: {
+                $0.name == "kimi-auth" && $0.domain.contains("kimi.com")
             }) {
-                let jwt = cookie.value
+                let rawJwt = cookie.value
+                let jwt = rawJwt.removingPercentEncoding ?? rawJwt
                 DispatchQueue.main.async {
                     self.cookieTimer?.invalidate()
                     self.cookieTimer = nil

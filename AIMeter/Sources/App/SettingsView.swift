@@ -34,6 +34,7 @@ struct SettingsView: View {
     @ObservedObject var updaterManager: UpdaterManager
     @ObservedObject var authManager: SessionAuthManager
     @ObservedObject var codexAuthManager: CodexAuthManager
+    @ObservedObject var kimiAuthManager: KimiAuthManager
     @ObservedObject var historyService: QuotaHistoryService
     @ObservedObject var copilotHistoryService: CopilotHistoryService
 
@@ -100,7 +101,7 @@ struct SettingsView: View {
     private func contentForSection(_ section: SettingsSection) -> some View {
         switch section {
         case .accounts:
-            AccountsSettingsSection(authManager: authManager, codexAuthManager: codexAuthManager)
+            AccountsSettingsSection(authManager: authManager, codexAuthManager: codexAuthManager, kimiAuthManager: kimiAuthManager)
         case .display:
             DisplaySettingsSection()
         case .notifications:
@@ -122,6 +123,7 @@ struct SettingsView: View {
 struct AccountsSettingsSection: View {
     @ObservedObject var authManager: SessionAuthManager
     @ObservedObject var codexAuthManager: CodexAuthManager
+    @ObservedObject var kimiAuthManager: KimiAuthManager
 
     @AppStorage("hidePersonalInfo") private var hidePersonalInfo: Bool = false
 
@@ -129,6 +131,7 @@ struct AccountsSettingsSection: View {
     @State private var glmKeyInput: String = ""
     @State private var glmKeySaved: Bool = false
     @State private var showCodexSignOutConfirmation = false
+    @State private var showKimiSignOutConfirmation = false
 
     var body: some View {
         settingsSectionCard {
@@ -240,6 +243,56 @@ struct AccountsSettingsSection: View {
                     Image(systemName: "person.crop.circle.fill")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
+                    Text("Kimi")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+
+                if kimiAuthManager.isAuthenticated {
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.system(size: 12))
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Signed in")
+                                .font(.system(size: 12))
+                                .foregroundColor(.white)
+                            if let userName = PersonalInfoRedactor.conditionalRedact(kimiAuthManager.userName, hideInfo: hidePersonalInfo) {
+                                Text(userName)
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        Spacer()
+                        Button("Sign Out") {
+                            showKimiSignOutConfirmation = true
+                        }
+                        .font(.system(size: 11))
+                        .buttonStyle(.plain)
+                        .foregroundColor(.red)
+                    }
+                } else {
+                    Button("Sign in with Kimi") {
+                        kimiAuthManager.openLoginWindow()
+                    }
+                    .font(.system(size: 12))
+                    .buttonStyle(.plain)
+                    .foregroundColor(.accentColor)
+                    .disabled(kimiAuthManager.isLoggingIn)
+                }
+
+                if let error = kimiAuthManager.lastError {
+                    Text(error)
+                        .font(.system(size: 10))
+                        .foregroundColor(.red)
+                }
+
+                Divider().opacity(0.3)
+
+                HStack(spacing: 6) {
+                    Image(systemName: "person.crop.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
                     Text("Codex")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.secondary)
@@ -292,6 +345,14 @@ struct AccountsSettingsSection: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("You'll need to sign in again to view usage data.")
+        }
+        .confirmationDialog("Sign out of Kimi?", isPresented: $showKimiSignOutConfirmation) {
+            Button("Sign Out", role: .destructive) {
+                kimiAuthManager.signOut()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("You'll need to sign in again to view Kimi usage data.")
         }
         .confirmationDialog("Sign out of Codex?", isPresented: $showCodexSignOutConfirmation) {
             Button("Sign Out", role: .destructive) {

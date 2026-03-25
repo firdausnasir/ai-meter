@@ -238,6 +238,7 @@ struct PopoverView: View {
             updaterManager: updaterManager,
             authManager: authManager,
             codexAuthManager: codexAuthManager,
+            kimiAuthManager: kimiAuthManager,
             historyService: historyService,
             copilotHistoryService: copilotHistoryService
         )
