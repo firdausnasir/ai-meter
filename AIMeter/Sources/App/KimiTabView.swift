@@ -145,10 +145,15 @@ struct KimiTabView: View {
                 Image(systemName: "clock.fill")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
-                Text("\(limit.window.duration)-minute Window")
+                Text(windowDurationText(limit.window.duration))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.white)
                 Spacer()
+                if let resetTime = limit.detail.resetTime {
+                    Text("Resets: \(formatResetTime(resetTime))")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
             }
 
             HStack {
@@ -204,5 +209,12 @@ struct KimiTabView: View {
             return "5-hour Window"
         }
         return "\(duration)-minute Window"
+    }
+
+    private func formatResetTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 }
