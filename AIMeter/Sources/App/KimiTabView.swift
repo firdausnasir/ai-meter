@@ -3,63 +3,194 @@ import SwiftUI
 struct KimiTabView: View {
     @ObservedObject var kimiService: KimiService
     @ObservedObject var historyService: KimiHistoryService
-    var onKeySaved: (() -> Void)? = nil
+    @ObservedObject var authManager: KimiAuthManager
 
     var body: some View {
-        if kimiService.error == .noKey {
-            APIKeyInputView(
-                providerName: "Kimi",
-                placeholder: "KIMI_API_KEY…",
-                accentColor: ProviderTheme.kimi.accentColor
-            ) { key in
-                APIKeyKeychainHelper.kimi.saveAPIKey(key)
-                onKeySaved?()
-            }
+        if !authManager.isAuthenticated {
+            signInPromptView
         } else {
-            VStack(spacing: 8) {
-                    if case .fetchFailed = kimiService.error {
-                        ErrorBannerView(message: "Failed to fetch balance") {
-                            Task { await kimiService.fetch() }
-                        }
-                    }
-                    if case .rateLimited = kimiService.error {
-                        ErrorBannerView(message: "Rate limited — retrying", retryDate: kimiService.retryDate)
-                    }
-                    balanceRow(
-                        icon: "yensign.circle.fill",
-                        title: "Cash Balance",
-                        value: kimiService.kimiData.cashBalance
-                    )
-                    balanceRow(
-                        icon: "ticket.fill",
-                        title: "Voucher Balance",
-                        value: kimiService.kimiData.voucherBalance
-                    )
-                    HStack {
-                        Text("Total Available")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Text(String(format: "¥%.4f", kimiService.kimiData.totalBalance))
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundColor(kimiService.kimiData.totalBalance > 0 ? .green : .red)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(Color.white.opacity(0.05))
-                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
+            usageContentView
+        }
+    }
 
+    private var signInPromptView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "person.circle.fill")
+                .font(.system(size: 48))
+                .foregroundColor(.secondary)
+
+            Text("Sign in to Kimi")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.white)
+
+            Text("Access your Kimi for Coding usage data")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+
+            Button("Sign in with Browser") {
+                authManager.openLoginWindow()
+            }
+            .font(.system(size: 13, weight: .medium))
+            .buttonStyle(.borderedProminent)
+            .controlSize(.regular)
+
+            if let error = authManager.lastError {
+                Text(error)
+                    .font(.system(size: 11))
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var usageContentView: some View {
+        ScrollView {
+            VStack(spacing: 12) {
+                if case .fetchFailed = kimiService.error {
+                    ErrorBannerView(message: "Failed to fetch usage") {
+                        Task { await kimiService.fetch() }
+                    }
+                }
+                if case .rateLimited = kimiService.error {
+                    ErrorBannerView(message: "Rate limited — retrying", retryDate: kimiService.retryDate)
+                }
+
+                // Main usage card
+                usageCard
+
+                // Rate limit windows
+                ForEach(kimiService.kimiData.limits.indices, id: \.self) { index in
+                    limitWindowCard(kimiService.kimiData.limits[index])
+                }
+
+                // History chart
+                if !historyService.history.dataPoints.isEmpty {
                     UsageHistoryChartView(
-                        title: "Balance History",
+                        title: "Usage History",
                         dataPoints: historyService.history.dataPoints.map {
-                            (date: $0.timestamp, value: $0.totalBalance, label: shortDateLabel($0.timestamp))
+                            (date: $0.timestamp, value: Double($0.utilization), label: shortDateLabel($0.timestamp))
                         },
-                        // Currency y-axis: show 2 decimal places
-                        valueFormatter: { String(format: "¥%.2f", $0) },
+                        valueFormatter: { "\(Int($0))%" },
                         accentColor: ProviderTheme.kimi.accentColor
                     )
                 }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
+    }
+
+    private var usageCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "chart.bar.fill")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+                Text("Weekly Usage")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.white)
+                Spacer()
+                if let resetTime = kimiService.kimiData.resetTimeFormatted {
+                    Text("Resets: \(resetTime)")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            HStack(alignment: .lastTextBaseline, spacing: 4) {
+                Text("\(kimiService.kimiData.detail.used)")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                Text("/ \(kimiService.kimiData.detail.limit)")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("\(kimiService.kimiData.utilizationPercent)%")
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .foregroundColor(utilizationColor)
+            }
+
+            GeometryReader { geometry in
+                let width = geometry.size.width
+                let progress = min(Double(kimiService.kimiData.detail.used) / Double(max(kimiService.kimiData.detail.limit, 1)), 1.0)
+
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.white.opacity(0.1))
+                        .frame(height: 8)
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(utilizationColor)
+                        .frame(width: width * progress, height: 8)
+                }
+            }
+            .frame(height: 8)
+        }
+        .padding(12)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 2)
+                .frame(width: 3)
+                .foregroundColor(ProviderTheme.kimi.accentColor)
+        }
+    }
+
+    private func limitWindowCard(_ limit: KimiLimitWindow) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "clock.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                Text("\(limit.window.duration)-minute Window")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white)
+                Spacer()
+            }
+
+            HStack {
+                Text("\(limit.detail.used) / \(limit.detail.limit)")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+                Spacer()
+                Text("\(limit.detail.remaining) remaining")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+
+            GeometryReader { geometry in
+                let width = geometry.size.width
+                let progress = min(Double(limit.detail.used) / Double(max(limit.detail.limit, 1)), 1.0)
+
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.white.opacity(0.1))
+                        .frame(height: 6)
+
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(utilizationColor(for: limit.detail))
+                        .frame(width: width * progress, height: 6)
+                }
+            }
+            .frame(height: 6)
+        }
+        .padding(10)
+        .background(Color.white.opacity(0.03))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private var utilizationColor: Color {
+        utilizationColor(for: kimiService.kimiData.detail)
+    }
+
+    private func utilizationColor(for detail: KimiUsageDetail) -> Color {
+        let pct = Double(detail.used) / Double(max(detail.limit, 1)) * 100
+        if pct < 50 { return .green }
+        if pct < 80 { return .yellow }
+        return .red
     }
 
     private func shortDateLabel(_ date: Date) -> String {
@@ -67,32 +198,4 @@ struct KimiTabView: View {
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: date)
     }
-
-    @ViewBuilder
-    private func balanceRow(icon: String, title: String, value: Double) -> some View {
-        HStack {
-            Image(systemName: icon)
-                .font(.system(size: 13))
-                .foregroundColor(.secondary)
-                .frame(width: 20)
-            Text(title)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(.white)
-            Spacer()
-            Text(String(format: "¥%.4f", value))
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundColor(value > 0 ? .white : .secondary)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Color.white.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.card))
-        .overlay(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 2)
-                .frame(width: 2)
-                .foregroundColor(ProviderTheme.kimi.accentColor)
-        }
-    }
-
-
 }
