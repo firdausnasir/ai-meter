@@ -320,7 +320,7 @@ final class KimiLoginCoordinator: NSObject, ObservableObject, WKNavigationDelega
 
             let statusBarHeight: CGFloat = 60
             let padding: CGFloat = 40
-            let minHeight: CGFloat = 500
+            let minHeight: CGFloat = 640
             let maxHeight: CGFloat = 900
 
             let targetHeight = min(max(contentHeight + statusBarHeight + padding, minHeight), maxHeight)

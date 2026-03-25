@@ -157,9 +157,13 @@ struct KimiTabView: View {
             }
 
             HStack {
-                Text("\(limit.detail.used) / \(limit.detail.limit)")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
+                let percentage = limit.detail.limit > 0 ? Int((Double(limit.detail.used) / Double(limit.detail.limit)) * 100) : 0
+                Text("\(percentage)%")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundColor(utilizationColor(for: limit.detail))
+                Text("(\(limit.detail.used)/\(limit.detail.limit))")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
                 Spacer()
                 Text("\(limit.detail.remaining) remaining")
                     .font(.system(size: 11))
