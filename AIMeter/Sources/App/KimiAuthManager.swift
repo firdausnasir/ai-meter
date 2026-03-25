@@ -223,7 +223,6 @@ final class KimiLoginCoordinator: NSObject, ObservableObject, WKNavigationDelega
                 if let http = response as? HTTPURLResponse, http.statusCode != 200 {
                     let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
                     loginState = .failed(message: "HTTP \(http.statusCode): \(errorBody)")
-                    startCookieMonitoring()
                     return
                 }
 
@@ -242,11 +241,9 @@ final class KimiLoginCoordinator: NSObject, ObservableObject, WKNavigationDelega
                     KimiLoginWindowManager.shared.closeLoginWindow()
                 } else {
                     loginState = .failed(message: "Invalid response format")
-                    startCookieMonitoring()
                 }
             } catch {
                 loginState = .failed(message: error.localizedDescription)
-                startCookieMonitoring()
             }
         }
     }
