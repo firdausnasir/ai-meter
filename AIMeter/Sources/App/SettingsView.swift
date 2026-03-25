@@ -130,6 +130,8 @@ struct AccountsSettingsSection: View {
     @State private var showSignOutConfirmation = false
     @State private var glmKeyInput: String = ""
     @State private var glmKeySaved: Bool = false
+    @State private var minimaxKeyInput: String = ""
+    @State private var minimaxKeySaved: Bool = false
     @State private var showCodexSignOutConfirmation = false
     @State private var showKimiSignOutConfirmation = false
 
@@ -290,6 +292,54 @@ struct AccountsSettingsSection: View {
                 Divider().opacity(0.3)
 
                 HStack(spacing: 6) {
+                    Image(systemName: "key.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    Text("MiniMax API Key")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+
+                if MinimaxService.keyIsFromEnvironment {
+                    Text("Using MINIMAX_API_KEY from environment")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .italic()
+                } else if APIKeyKeychainHelper.minimax.readAPIKey() != nil && minimaxKeyInput.isEmpty {
+                    HStack {
+                        Text("••••••••")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Button("Clear") {
+                            APIKeyKeychainHelper.minimax.deleteAPIKey()
+                            minimaxKeySaved = false
+                        }
+                        .font(.system(size: 11))
+                        .buttonStyle(.plain)
+                        .foregroundColor(.red)
+                    }
+                } else {
+                    HStack {
+                        SecureField("Paste API key…", text: $minimaxKeyInput)
+                            .font(.system(size: 12))
+                            .textFieldStyle(.plain)
+                        if !minimaxKeyInput.isEmpty {
+                            Button(minimaxKeySaved ? "Saved ✓" : "Save") {
+                                APIKeyKeychainHelper.minimax.saveAPIKey(minimaxKeyInput)
+                                minimaxKeySaved = true
+                                minimaxKeyInput = ""
+                            }
+                            .font(.system(size: 11))
+                            .buttonStyle(.plain)
+                            .foregroundColor(minimaxKeySaved ? .green : .accentColor)
+                        }
+                    }
+                }
+
+                Divider().opacity(0.3)
+
+                HStack(spacing: 6) {
                     Image(systemName: "person.crop.circle.fill")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
@@ -382,6 +432,7 @@ struct DisplaySettingsSection: View {
     @AppStorage("refreshGLM") private var refreshGLM: Double = 120
     @AppStorage("refreshKimi") private var refreshKimi: Double = 300
     @AppStorage("refreshCodex") private var refreshCodex: Double = 300
+    @AppStorage("refreshMinimax") private var refreshMinimax: Double = 120
     @AppStorage("providerTabOrder") private var providerTabOrder: String = Tab.defaultOrderString
     @AppStorage("loadingPattern") private var loadingPattern: String = LoadingPattern.fade.rawValue
 
@@ -488,6 +539,7 @@ struct DisplaySettingsSection: View {
                     providerRefreshRow("GLM", value: $refreshGLM)
                     providerRefreshRow("Kimi", value: $refreshKimi)
                     providerRefreshRow("Codex", value: $refreshCodex)
+                    providerRefreshRow("MiniMax", value: $refreshMinimax)
                 }
 
                 Divider().opacity(0.3)
@@ -705,8 +757,8 @@ struct ShortcutsSettingsSection: View {
             VStack(alignment: .leading, spacing: 4) {
                 shortcutRow("⌃⌥A", "Toggle menu bar popover")
                 shortcutRow("⌘R", "Refresh all providers")
-                shortcutRow("⌘1–5", "Jump to provider tab")
-                shortcutRow("⌘6", "Open Settings")
+                shortcutRow("⌘1–6", "Jump to provider tab")
+                shortcutRow("⌘7", "Open Settings")
                 shortcutRow("⌘,", "Open Settings")
                 shortcutRow("← →", "Navigate between tabs")
                 shortcutRow("Esc", "Return from Settings")
@@ -754,6 +806,7 @@ struct GeneralSettingsSection: View {
     @AppStorage("refreshGLM") private var refreshGLM: Double = 120
     @AppStorage("refreshKimi") private var refreshKimi: Double = 300
     @AppStorage("refreshCodex") private var refreshCodex: Double = 300
+    @AppStorage("refreshMinimax") private var refreshMinimax: Double = 120
     @AppStorage("providerTabOrder") private var providerTabOrder: String = Tab.defaultOrderString
     @AppStorage("checkProviderStatus") private var checkProviderStatus: Bool = true
     @AppStorage("loadingPattern") private var loadingPattern: String = LoadingPattern.fade.rawValue
@@ -850,6 +903,7 @@ struct GeneralSettingsSection: View {
                     refreshGLM = 120
                     refreshKimi = 300
                     refreshCodex = 300
+                    refreshMinimax = 120
                     hidePersonalInfo = false
                     providerTabOrder = Tab.defaultOrderString
                     loadingPattern = LoadingPattern.fade.rawValue
@@ -1001,6 +1055,7 @@ struct DeveloperSettingsSection: View {
                     serviceStatusRow("GLM", date: SharedDefaults.loadGLM()?.fetchedAt)
                     serviceStatusRow("Kimi", date: SharedDefaults.loadKimi()?.fetchedAt)
                     serviceStatusRow("Codex", date: SharedDefaults.loadCodex()?.fetchedAt)
+                    serviceStatusRow("MiniMax", date: SharedDefaults.loadMinimax()?.fetchedAt)
                 }
             }
 
@@ -1045,6 +1100,7 @@ struct DeveloperSettingsSection: View {
                             suite?.removeObject(forKey: "glmData")
                             suite?.removeObject(forKey: "kimiData")
                             suite?.removeObject(forKey: "codexData")
+                            suite?.removeObject(forKey: "minimaxData")
                         }
                         Button("Cancel", role: .cancel) {}
                     } message: {
