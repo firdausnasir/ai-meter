@@ -128,8 +128,6 @@ struct AccountsSettingsSection: View {
     @State private var showSignOutConfirmation = false
     @State private var glmKeyInput: String = ""
     @State private var glmKeySaved: Bool = false
-    @State private var kimiKeyInput: String = ""
-    @State private var kimiKeySaved: Bool = false
     @State private var showCodexSignOutConfirmation = false
 
     var body: some View {
@@ -232,54 +230,6 @@ struct AccountsSettingsSection: View {
                             .font(.system(size: 11))
                             .buttonStyle(.plain)
                             .foregroundColor(glmKeySaved ? .green : .accentColor)
-                        }
-                    }
-                }
-
-                Divider().opacity(0.3)
-
-                HStack(spacing: 6) {
-                    Image(systemName: "key.fill")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                    Text("Kimi API Key")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-
-                if KimiService.keyIsFromEnvironment {
-                    Text("Using KIMI_API_KEY from environment")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                        .italic()
-                } else if APIKeyKeychainHelper.kimi.readAPIKey() != nil && kimiKeyInput.isEmpty {
-                    HStack {
-                        Text("••••••••")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Button("Clear") {
-                            APIKeyKeychainHelper.kimi.deleteAPIKey()
-                            kimiKeySaved = false
-                        }
-                        .font(.system(size: 11))
-                        .buttonStyle(.plain)
-                        .foregroundColor(.red)
-                    }
-                } else {
-                    HStack {
-                        SecureField("Paste API key…", text: $kimiKeyInput)
-                            .font(.system(size: 12))
-                            .textFieldStyle(.plain)
-                        if !kimiKeyInput.isEmpty {
-                            Button(kimiKeySaved ? "Saved ✓" : "Save") {
-                                APIKeyKeychainHelper.kimi.saveAPIKey(kimiKeyInput)
-                                kimiKeySaved = true
-                                kimiKeyInput = ""
-                            }
-                            .font(.system(size: 11))
-                            .buttonStyle(.plain)
-                            .foregroundColor(kimiKeySaved ? .green : .accentColor)
                         }
                     }
                 }

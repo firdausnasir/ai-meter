@@ -141,7 +141,7 @@ struct SummaryStripView: View {
     let claudeUtilization: Int?
     let copilotUtilization: Int?
     let glmUtilization: Int?
-    let kimiBalance: Double?
+    let kimiUtilization: Int?
     let codexUtilization: Int?
 
     var body: some View {
@@ -155,8 +155,8 @@ struct SummaryStripView: View {
             if let util = glmUtilization {
                 pill(tab: .glm, theme: .glm, text: "\(util)%", utilization: util)
             }
-            if let balance = kimiBalance {
-                pill(tab: .kimi, theme: .kimi, text: String(format: "¥%.2f", balance), utilization: balance > 0 ? 10 : 100)
+            if let util = kimiUtilization {
+                pill(tab: .kimi, theme: .kimi, text: "\(util)%", utilization: util)
             }
             if let util = codexUtilization {
                 pill(tab: .codex, theme: .codex, text: "\(util)%", utilization: util)
@@ -309,7 +309,7 @@ struct PopoverView: View {
                     claudeUtilization: authManager.isAuthenticated ? service.usageData.fiveHour.utilization : nil,
                     copilotUtilization: copilotService.error != .noToken ? copilotService.copilotData.premiumInteractions.utilization : nil,
                     glmUtilization: glmService.error != .noKey ? glmService.glmData.tokensPercent : nil,
-                    kimiBalance: kimiService.error != .noKey ? kimiService.kimiData.totalBalance : nil,
+                    kimiUtilization: kimiAuthManager.isAuthenticated ? kimiService.kimiData.utilizationPercent : nil,
                     codexUtilization: codexAuthManager.isAuthenticated ? codexService.codexData.primaryPercent : nil
                 )
                 .padding(.bottom, 6)
