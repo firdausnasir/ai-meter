@@ -198,4 +198,11 @@ struct KimiTabView: View {
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: date)
     }
+
+    private func windowDurationText(_ duration: Int) -> String {
+        if duration == 300 {
+            return "5-hour Window"
+        }
+        return "\(duration)-minute Window"
+    }
 }
