@@ -1,16 +1,16 @@
 import Foundation
+import os
 
 @MainActor
 final class KimiHistoryService: ObservableObject {
     @Published var history: KimiHistory = KimiHistory()
 
     private static let historyFileURL: URL = {
-        let dir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/aimeter", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("kimi-history.json")
+        try? FileManager.default.createDirectory(at: AppConstants.Paths.configDir, withIntermediateDirectories: true)
+        return AppConstants.Paths.kimiHistoryFile
     }()
 
+    private static let logger = Logger(subsystem: "com.khairul.aimeter", category: "KimiHistoryService")
     private var saveTask: Task<Void, Never>?
 
     init() {
@@ -38,11 +38,17 @@ final class KimiHistoryService: ObservableObject {
     }
 
     private func loadHistory() {
-        guard let data = try? Data(contentsOf: Self.historyFileURL),
-              let decoded = try? JSONDecoder().decode(KimiHistory.self, from: data) else {
-            return
+        let url = Self.historyFileURL
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        do {
+            let data = try Data(contentsOf: url)
+            history = try JSONDecoder().decode(KimiHistory.self, from: data)
+        } catch {
+            Self.logger.warning("History file corrupted (\(url.lastPathComponent)), moving to backup: \(error.localizedDescription)")
+            let backup = url.deletingPathExtension().appendingPathExtension("bak.json")
+            try? FileManager.default.removeItem(at: backup)
+            try? FileManager.default.moveItem(at: url, to: backup)
         }
-        history = decoded
     }
 
     private func saveHistory() {

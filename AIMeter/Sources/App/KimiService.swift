@@ -23,13 +23,17 @@ final class KimiService: ObservableObject {
     }
 
     func start(interval: TimeInterval = 300, authManager: KimiAuthManager, historyService: KimiHistoryService? = nil) {
+        stop()
         self.refreshInterval = interval
         self.authManager = authManager
         self.kimiHistoryService = historyService
         loadCachedData(staleThreshold: interval * 2)
         Task { await fetch() }
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            Task { [weak self] in await self?.fetch() }
+            Task { [weak self] in
+                guard NetworkMonitor.shared.isConnected else { return }
+                await self?.fetch()
+            }
         }
     }
 

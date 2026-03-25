@@ -33,8 +33,11 @@ final class KimiAuthManager: ObservableObject {
     func saveCredentials(jwtToken: String, userId: String?, userName: String?, planName: String?) {
         KimiSessionKeychain.save(account: .jwtToken, value: jwtToken)
         if let userId { KimiSessionKeychain.save(account: .userId, value: userId) }
+        else { KimiSessionKeychain.delete(account: .userId) }
         if let userName { KimiSessionKeychain.save(account: .userName, value: userName) }
+        else { KimiSessionKeychain.delete(account: .userName) }
         if let planName { KimiSessionKeychain.save(account: .planName, value: planName) }
+        else { KimiSessionKeychain.delete(account: .planName) }
         self.jwtToken = jwtToken
         self.userId = userId
         self.userName = userName
@@ -232,7 +235,9 @@ final class KimiLoginCoordinator: NSObject, ObservableObject, WKNavigationDelega
                 let (data, response) = try await session.data(for: request)
 
                 if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-                    loginState = .waitingForLogin
+                    let msg = "Sign-in failed (HTTP \(http.statusCode)). Please try again."
+                    loginState = .failed(message: msg)
+                    authManager?.loginFailed(msg)
                     isValidatingJWT = false
                     startCookieMonitoring()
                     return
@@ -258,7 +263,9 @@ final class KimiLoginCoordinator: NSObject, ObservableObject, WKNavigationDelega
                     startCookieMonitoring()
                 }
             } catch {
-                loginState = .waitingForLogin
+                let msg = "Sign-in failed: \(error.localizedDescription)"
+                loginState = .failed(message: msg)
+                authManager?.loginFailed(msg)
                 isValidatingJWT = false
                 startCookieMonitoring()
             }
