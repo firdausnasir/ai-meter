@@ -87,7 +87,7 @@ final class KimiLoginWindowManager {
         let hostingView = NSHostingView(rootView: view)
 
         let win = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 750),
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 500),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -97,6 +97,8 @@ final class KimiLoginWindowManager {
         win.center()
         win.isReleasedWhenClosed = false
         win.makeKeyAndOrderFront(nil)
+
+        coordinator.window = win
 
         NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
@@ -132,6 +134,7 @@ final class KimiLoginCoordinator: NSObject, ObservableObject, WKNavigationDelega
     @Published var loadProgress: Double = 0
 
     let webView: WKWebView
+    weak var window: NSWindow?
     private weak var authManager: KimiAuthManager?
     private var cookieTimer: Timer?
     private var lastValidatedJWT: String?
@@ -304,6 +307,32 @@ final class KimiLoginCoordinator: NSObject, ObservableObject, WKNavigationDelega
             if case .success = self.loginState { return }
             self.loginState = .waitingForLogin
             self.startCookieMonitoring()
+            self.resizeWindowToFitContent()
+        }
+    }
+
+    private func resizeWindowToFitContent() {
+        webView.evaluateJavaScript("document.body.scrollHeight") { [weak self] result, _ in
+            guard let self = self,
+                  let contentHeight = result as? CGFloat,
+                  contentHeight > 0,
+                  let window = self.window else { return }
+
+            let statusBarHeight: CGFloat = 60
+            let padding: CGFloat = 40
+            let minHeight: CGFloat = 500
+            let maxHeight: CGFloat = 900
+
+            let targetHeight = min(max(contentHeight + statusBarHeight + padding, minHeight), maxHeight)
+            let currentFrame = window.frame
+            let newFrame = NSRect(
+                x: currentFrame.origin.x,
+                y: currentFrame.origin.y + (currentFrame.height - targetHeight),
+                width: currentFrame.width,
+                height: targetHeight
+            )
+
+            window.setFrame(newFrame, display: true, animate: true)
         }
     }
 
