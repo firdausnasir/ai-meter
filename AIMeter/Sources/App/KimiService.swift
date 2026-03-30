@@ -29,12 +29,7 @@ final class KimiService: ObservableObject {
         self.kimiHistoryService = historyService
         loadCachedData(staleThreshold: interval * 2)
         Task { await fetch() }
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            Task { [weak self] in
-                guard NetworkMonitor.shared.isConnected else { return }
-                await self?.fetch()
-            }
-        }
+        scheduleTimer(interval: interval)
     }
 
     func stop() {
@@ -44,9 +39,7 @@ final class KimiService: ObservableObject {
 
     private func rescheduleTimer(interval: TimeInterval) {
         stop()
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            Task { [weak self] in await self?.fetch() }
-        }
+        scheduleTimer(interval: interval)
     }
 
     func fetch() async {
@@ -93,7 +86,7 @@ final class KimiService: ObservableObject {
     }
 
     private func fetchUsages(jwtToken: String) async throws -> KimiUsageData {
-        let url = URL(string: "https://www.kimi.com/apiv2/kimi.gateway.billing.v1.BillingService/GetUsages")!
+        let url = URL(string: AppConstants.API.kimiUsagesURL)!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
@@ -166,6 +159,19 @@ final class KimiService: ObservableObject {
         if let cached = SharedDefaults.loadKimi() {
             self.kimiData = cached
             self.isStale = Date().timeIntervalSince(cached.fetchedAt) > staleThreshold
+        }
+    }
+
+    private func scheduleTimer(interval: TimeInterval) {
+        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            self?.performScheduledFetch()
+        }
+    }
+
+    private func performScheduledFetch() {
+        Task { [weak self] in
+            guard NetworkMonitor.shared.isConnected else { return }
+            await self?.fetch()
         }
     }
 }

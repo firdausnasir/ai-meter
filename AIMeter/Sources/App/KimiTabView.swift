@@ -71,12 +71,11 @@ struct KimiTabView: View {
             // Rate limit windows
             ForEach(kimiService.kimiData.limits.indices, id: \.self) { index in
                 let limit = kimiService.kimiData.limits[index]
-                let percentage = limit.detail.limit > 0 ? Int((Double(limit.detail.used) / Double(limit.detail.limit)) * 100) : 0
                 UsageCardView(
                     icon: "clock.fill",
                     title: windowTitle(for: limit.window.duration),
                     subtitle: "\(limit.detail.remaining) remaining",
-                    percentage: percentage,
+                    percentage: limit.detail.utilizationPercent,
                     resetText: limit.detail.resetTime.map { formatResetTime($0) },
                     accentColor: ProviderTheme.kimi.accentColor
                 )

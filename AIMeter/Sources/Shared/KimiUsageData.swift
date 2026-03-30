@@ -17,8 +17,7 @@ struct KimiUsageData: Codable, Equatable {
 
     /// Total usage percentage (0-100)
     var utilizationPercent: Int {
-        guard detail.limit > 0 else { return 0 }
-        return Int((Double(detail.used) / Double(detail.limit)) * 100)
+        detail.utilizationPercent
     }
 
     /// True if usage is at or over limit
@@ -41,6 +40,12 @@ struct KimiUsageDetail: Codable, Equatable {
     let used: Int
     let remaining: Int
     let resetTime: Date?
+
+    var utilizationPercent: Int {
+        guard limit > 0 else { return 0 }
+        let rawPercent = (Double(used) / Double(limit)) * 100
+        return max(0, min(100, Int(rawPercent)))
+    }
 
     enum CodingKeys: String, CodingKey {
         case limit

@@ -78,6 +78,9 @@ final class KimiAuthManager: ObservableObject {
 final class KimiLoginWindowManager {
     static let shared = KimiLoginWindowManager()
     private var window: NSWindow?
+    private var windowCloseObserver: Any?
+    private weak var authManager: KimiAuthManager?
+    private var coordinator: KimiLoginCoordinator?
 
     func openLoginWindow(authManager: KimiAuthManager) {
         if let existing = window {
@@ -86,6 +89,8 @@ final class KimiLoginWindowManager {
         }
 
         let coordinator = KimiLoginCoordinator(authManager: authManager)
+        self.authManager = authManager
+        self.coordinator = coordinator
         let view = KimiLoginContentView(coordinator: coordinator)
         let hostingView = NSHostingView(rootView: view)
 
@@ -103,14 +108,12 @@ final class KimiLoginWindowManager {
 
         coordinator.window = win
 
-        NotificationCenter.default.addObserver(
+        windowCloseObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
             object: win,
             queue: .main
         ) { [weak self] _ in
-            coordinator.cleanup()
-            authManager.loginCompleted()
-            self?.window = nil
+            self?.handleWindowClosed()
         }
 
         window = win
@@ -118,7 +121,22 @@ final class KimiLoginWindowManager {
 
     func closeLoginWindow() {
         window?.close()
+    }
+
+    private func handleWindowClosed() {
+        coordinator?.cleanup()
+        authManager?.loginCompleted()
+        coordinator = nil
+        authManager = nil
+        clearWindowCloseObserver()
         window = nil
+    }
+
+    private func clearWindowCloseObserver() {
+        if let windowCloseObserver {
+            NotificationCenter.default.removeObserver(windowCloseObserver)
+            self.windowCloseObserver = nil
+        }
     }
 }
 
@@ -220,7 +238,7 @@ final class KimiLoginCoordinator: NSObject, ObservableObject, WKNavigationDelega
 
         Task { @MainActor in
             // Validate by making a test request to GetUsages endpoint
-            let url = URL(string: "https://www.kimi.com/apiv2/kimi.gateway.billing.v1.BillingService/GetUsages")!
+            let url = URL(string: AppConstants.API.kimiUsagesURL)!
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("Bearer \(jwt)", forHTTPHeaderField: "Authorization")
